@@ -856,11 +856,21 @@ function renderStudyList() {
     const n = s.items.length;
     const ws = s.items.filter(i => i.cat === 'WS').length;
     const pct = n ? Math.round(ws/n*100) : 0;
-    return `<div class="study-card" onclick="openStudy(${s.id})">
-      <div class="study-card-title">${s.name}</div>
-      <div class="study-card-meta">${s.author||'Unbekannt'} · ${s.date} · ${n} Tätigkeiten · WS: ${pct}%</div>
+    return `<div class="study-card" style="display:flex;align-items:center;gap:10px">
+      <div style="flex:1" onclick="openStudy(${s.id})" style="cursor:pointer">
+        <div class="study-card-title">${s.name}</div>
+        <div class="study-card-meta">${s.author||'Unbekannt'} · ${s.date} · ${n} Tätigkeiten · WS: ${pct}%</div>
+      </div>
+      <button onclick="deleteStudy(${s.id})" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px;padding:4px 6px;border-radius:6px;flex-shrink:0" title="Studie löschen" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#d1d5db'">✕</button>
     </div>`;
   }).join('');
+}
+
+function deleteStudy(id) {
+  if (!confirm('Studie wirklich löschen? Dies kann nicht rückgängig gemacht werden.')) return;
+  studies = studies.filter(s => s.id !== id);
+  localStorage.setItem('lc_studies', JSON.stringify(studies));
+  renderStudyList();
 }
 
 function openStudy(id) {
