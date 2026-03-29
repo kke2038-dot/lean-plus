@@ -262,6 +262,37 @@
   .photo-grid-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; cursor: pointer; display: block; }
   .photo-grid-label { font-size: 10px; color: #9ca3af; text-align: center; margin-top: 3px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+
+  /* Audio recording */
+  .audio-wrap { margin-bottom: 10px; }
+  .audio-trigger {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border: 1.5px dashed #d1d5db; border-radius: 9px; background: #f9fafb;
+    cursor: pointer; font-size: 13px; color: #6b7280; font-family: inherit; width: 100%;
+    transition: all .15s;
+  }
+  .audio-trigger:hover { border-color: #9ca3af; color: #374151; }
+  .audio-trigger.recording { border-color: #dc2626; background: #fee2e2; color: #dc2626; animation: pulse-rec 1s ease-in-out infinite; }
+  @keyframes pulse-rec { 0%,100% { opacity:1; } 50% { opacity:.6; } }
+  .audio-player { margin-top:8px; width:100%; border-radius:8px; }
+  .audio-player-wrap { display:none; margin-top:8px; }
+  .audio-del-btn { font-size:11px; color:#dc2626; background:none; border:none; cursor:pointer; margin-left:8px; font-family:inherit; }
+  .ta-audio-icon { font-size:14px; flex-shrink:0; }
+
+  /* EKUV-Bewertung pills */
+  .ekuv-bew-group { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .ekuv-bew-btn { padding:5px 12px; font-size:12px; font-weight:500; border-radius:20px; border:1.5px solid #d1d5db; background:#fff; cursor:pointer; font-family:inherit; color:#374151; transition:all .12s; }
+  .ekuv-bew-btn:hover { border-color:#9ca3af; }
+  .ekuv-bew-btn.e.sel { background:#fee2e2; border-color:#fca5a5; color:#7f1d1d; }
+  .ekuv-bew-btn.c.sel { background:#fef3c7; border-color:#fcd34d; color:#78350f; }
+  .ekuv-bew-btn.r.sel { background:#dbeafe; border-color:#93c5fd; color:#1e3a8a; }
+  .ekuv-bew-btn.s.sel { background:#d1fae5; border-color:#6ee7b7; color:#065f46; }
+  .ekuv-bew-badge { padding:2px 7px; border-radius:9px; font-size:10px; font-weight:600; }
+  .ekuv-bew-badge.e { background:#fee2e2; color:#7f1d1d; }
+  .ekuv-bew-badge.c { background:#fef3c7; color:#78350f; }
+  .ekuv-bew-badge.r { background:#dbeafe; color:#1e3a8a; }
+  .ekuv-bew-badge.s { background:#d1fae5; color:#065f46; }
+
   /* Responsive */
   @media (max-width: 600px) {
     .kpi-row { grid-template-columns: 1fr; gap: 0; }
@@ -350,6 +381,18 @@
           <button class="cam-del" onclick="clearPhoto()" title="Foto löschen">✕</button>
         </div>
       </div>
+
+      <!-- Audio -->
+      <div class="audio-wrap">
+        <button class="audio-trigger" id="audioTriggerBtn" onclick="toggleAudio()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          Audio aufnehmen
+        </button>
+        <div class="audio-player-wrap" id="audioPlayerWrap">
+          <audio class="audio-player" id="audioPlayer" controls></audio>
+          <button class="audio-del-btn" onclick="clearAudio()">Audio löschen</button>
+        </div>
+      </div>
       <div style="margin-bottom:8px">
         <div class="sec-label">Klassifikation</div>
         <div class="cat-group">
@@ -361,6 +404,16 @@
       <div id="twWrap" style="display:none;margin-bottom:8px">
         <div class="sec-label">TIMWOOD</div>
         <div class="tw-group" id="twPills"></div>
+      </div>
+
+      <div style="margin-bottom:8px">
+        <div class="sec-label">EKUV-Bewertung (optional)</div>
+        <div class="ekuv-bew-group">
+          <button class="ekuv-bew-btn e" id="ekuv-E" onclick="selEKUV('E')" title="Setzt 100% Zeitreduktion">E — Eliminieren</button>
+          <button class="ekuv-bew-btn c" id="ekuv-C" onclick="selEKUV('C')" title="Setzt 50% Zeitreduktion">K — Kombinieren</button>
+          <button class="ekuv-bew-btn r" id="ekuv-R" onclick="selEKUV('R')">U — Umstellen</button>
+          <button class="ekuv-bew-btn s" id="ekuv-S" onclick="selEKUV('S')">V — Vereinfachen</button>
+        </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn-sm green" id="taAddBtn" onclick="addTa()" disabled>Hinzufügen</button>
@@ -385,7 +438,8 @@
         <div class="rev-meta" id="revMeta">–</div>
       </div>
       <div class="rev-actions">
-        <button class="btn-sm" onclick="exportCSV()">Excel / CSV</button>
+        <button class="btn-sm" onclick="exportCSV()">Excel</button>
+        <button class="btn-sm" onclick="exportPDF()">PDF</button>
         <button class="btn-sm" onclick="switchSubTab('wf')">Wasserfall</button>
         <button class="btn-sm green" onclick="saveAndHome()">Speichern</button>
       </div>
@@ -481,6 +535,11 @@ let tRunning = false, tStart = null, tElapsed = 0, tInt = null;
 let aiDeb = null;
 let wfChartInst = null;
 let pendingPhoto = null;
+let pendingAudio = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let selEKUVVal = null;
 
 /* ───────── Init ───────── */
 document.getElementById('procDate').value = new Date().toISOString().slice(0,10);
@@ -661,20 +720,87 @@ function fmtS(s) {
 }
 
 /* ───────── Items ───────── */
+
+/* ───────── Audio recording ───────── */
+async function toggleAudio() {
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        pendingAudio = url;
+        const reader = new FileReader();
+        reader.onload = ev => { pendingAudio = ev.target.result; };
+        reader.readAsDataURL(blob);
+        document.getElementById('audioPlayer').src = url;
+        document.getElementById('audioPlayerWrap').style.display = 'block';
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      const btn = document.getElementById('audioTriggerBtn');
+      btn.classList.add('recording');
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Aufnahme stoppen`;
+    } catch(e) {
+      alert('Mikrofon-Zugriff nicht möglich. Bitte Berechtigung erteilen.');
+    }
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
+    const btn = document.getElementById('audioTriggerBtn');
+    btn.classList.remove('recording');
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Audio aufnehmen`;
+  }
+}
+
+function clearAudio() {
+  pendingAudio = null;
+  document.getElementById('audioPlayer').src = '';
+  document.getElementById('audioPlayerWrap').style.display = 'none';
+  document.getElementById('audioTriggerBtn').classList.remove('recording');
+}
+
+/* ───────── EKUV-Bewertung ───────── */
+function selEKUV(v) {
+  if (selECRSVal === v) {
+    selEKUVVal = null;
+    ['E','C','R','S'].forEach(x => document.getElementById('ekuv-'+x).classList.remove('sel'));
+  } else {
+    selEKUVVal = v;
+    ['E','C','R','S'].forEach(x => document.getElementById('ekuv-'+x).classList.toggle('sel', x===v));
+  }
+}
+
+function ekuvAutoSoll(ms) {
+  if (!selEKUVVal) return '';
+  if (selEKUVVal === 'E') return '0';
+  if (selEKUVVal === 'K') return String(Math.round(ms / 1000 / 2));
+  return '';
+}
+
 function addTa() {
   const name = document.getElementById('taInput').value.trim();
   if (!name || !selCatV) return;
+  const autoSoll = ekuvAutoSoll(tElapsed);
   cur.items.push({
     id: Date.now(), name, cat: selCatV, timwood: [...selTW], ms: tElapsed,
-    ekuv: {E:false,K:false,U:false,V:false,Int:false,Ext:false}, soll: '', remark: '',
-    photo: pendingPhoto || null
+    ekuv: {E:false,K:false,U:false,V:false,Int:false,Ext:false},
+    soll: autoSoll, remark: '',
+    photo: pendingPhoto || null,
+    audio: pendingAudio || null,
+    ekuv_bew: selEKUVVal || null
   });
   document.getElementById('taInput').value = '';
   document.getElementById('aiBox').style.display = 'none';
-  selCatV = null; selTW = [];
+  selCatV = null; selTW = []; selEKUVVal = null;
   ['ws','nws','v'].forEach(x => document.getElementById('c-'+x).classList.remove('sel'));
+  ['E','C','R','S'].forEach(x => document.getElementById('ekuv-'+x).classList.remove('sel'));
   document.getElementById('twWrap').style.display = 'none';
-  clearPhoto();
+  clearPhoto(); clearAudio();
   resetTimer(); checkAdd(); renderTaList();
 }
 
@@ -686,16 +812,23 @@ function renderTaList() {
   document.getElementById('reviewBtn').disabled = cur.items.length === 0;
   if (!cur.items.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
+  
   list.innerHTML = cur.items.map(i => `
-    <div class="ta-row">
-      ${i.photo ? `<img class="ta-thumb" src="${i.photo}" onclick="openLightbox('${i.photo}')" title="Foto ansehen">` : ''}
-      <div style="flex:1">
-        <div class="ta-name">${i.name}</div>
-        <div class="ta-sub">${i.timwood.join(', ')}</div>
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin-bottom:5px">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${i.photo ? `<img class="ta-thumb" src="${i.photo}" onclick="openLightbox('${i.photo}')" title="Foto ansehen">` : ''}
+        <div style="flex:1">
+          <div class="ta-name">${i.name}</div>
+          <div class="ta-sub" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+            ${i.timwood.length ? `<span>${i.timwood.join(', ')}</span>` : ''}
+            ${i.ekuv_bew ? `<span class="ekuv-bew-badge ${i.ekuv_bew.toLowerCase()}">${i.ekuv_bew}</span>` : ''}
+          </div>
+        </div>
+        <span class="badge ${i.cat.toLowerCase()}">${i.cat}</span>
+        <span class="ta-time-val">${i.ms > 0 ? fmt(i.ms) : '–'}</span>
+        <button class="del" onclick="delTa(${i.id})">✕</button>
       </div>
-      <span class="badge ${i.cat.toLowerCase()}">${i.cat}</span>
-      <span class="ta-time-val">${i.ms > 0 ? fmt(i.ms) : '–'}</span>
-      <button class="del" onclick="delTa(${i.id})">✕</button>
+      ${i.audio ? `<audio src="${i.audio}" controls style="width:100%;margin-top:6px;height:34px;border-radius:6px;"></audio>` : ''}
     </div>`).join('');
 }
 
@@ -840,6 +973,143 @@ function renderWaterfall() {
   </tr>`;
 }
 
+
+/* ───────── PDF Export ───────── */
+async function exportPDF() {
+  if (typeof window.jspdf === 'undefined') { alert('PDF-Bibliothek lädt noch…'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, margin = 14;
+  let y = 20;
+
+  // Header
+  doc.setFillColor(31, 41, 55);
+  doc.rect(0, 0, W, 28, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('Lean Plus — Tätigkeitsstrukturanalyse', margin, 12);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text(`${cur.name}  ·  ${cur.author||'–'}  ·  ${cur.date}`, margin, 21);
+  doc.setTextColor(0,0,0);
+  y = 36;
+
+  // KPIs
+  const items = cur.items;
+  const totalS = items.reduce((s,i)=>s+i.ms/1000,0);
+  const sArr = items.map(i=>{const v=parseFloat(i.soll);return isNaN(v)?i.ms/1000:v;});
+  const sollS = sArr.reduce((s,v)=>s+v,0);
+  const einspar = Math.max(0,totalS-sollS);
+
+  const kpis = [
+    ['IST Gesamt', fmtS(totalS)],
+    ['Einsparung', fmtS(einspar)],
+    ['SOLL Gesamt', fmtS(sollS)],
+  ];
+  const kpiW = (W - margin*2) / 3;
+  kpis.forEach(([label, val], i) => {
+    const x = margin + i * kpiW;
+    doc.setFillColor(243,244,246);
+    doc.roundedRect(x, y, kpiW-3, 18, 2, 2, 'F');
+    doc.setFontSize(8); doc.setTextColor(107,114,128);
+    doc.text(label, x+4, y+6);
+    doc.setFontSize(13); doc.setFont('helvetica','bold');
+    doc.setTextColor(i===1?220:i===2?5:17, i===1?38:i===2?150:24, i===1?38:i===2?117:24);
+    doc.text(val, x+4, y+14);
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
+  });
+  y += 26;
+
+  // Table header
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.setFillColor(31,41,55);
+  doc.rect(margin, y, W-margin*2, 7, 'F');
+  doc.setTextColor(255,255,255);
+  const cols = [8, 65, 20, 30, 20, 20];
+  const headers = ['Nr', 'Tätigkeit', 'IST', 'EKUV/TW', 'Zeit', 'SOLL'];
+  let cx = margin + 2;
+  headers.forEach((h,i) => { doc.text(h, cx, y+5); cx += cols[i]; });
+  doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
+  y += 9;
+
+  // Table rows
+  items.forEach((item, idx) => {
+    if (y > 260) { doc.addPage(); y = 20; }
+    const bg = idx % 2 === 0 ? [255,255,255] : [249,250,251];
+    doc.setFillColor(...bg);
+    doc.rect(margin, y, W-margin*2, 8, 'F');
+    doc.setFontSize(8);
+    cx = margin + 2;
+    const istStr = item.ms > 0 ? fmtS(item.ms/1000) : '–';
+    const sollStr = item.soll ? fmtS(parseFloat(item.soll)) : '–';
+    const tw = item.timwood.join(',');
+    const ecrsStr = item.ekuv_bew ? `[${item.ekuv_bew}]` : '';
+    const meta = [ecrsStr, tw, item.audio?'🎤':''].filter(Boolean).join(' ');
+    doc.text(String(idx+1), cx, y+5.5); cx += cols[0];
+    const nameLines = doc.splitTextToSize(item.name, cols[1]-2);
+    doc.text(nameLines[0], cx, y+5.5); cx += cols[1];
+    doc.text(item.cat, cx, y+5.5); cx += cols[2];
+    doc.text(meta, cx, y+5.5); cx += cols[3];
+    doc.text(istStr, cx, y+5.5); cx += cols[4];
+    doc.text(sollStr, cx, y+5.5);
+    if (item.remark) {
+      doc.setTextColor(107,114,128);
+      doc.text('  → '+item.remark.slice(0,70), margin+10, y+5.5+3);
+      doc.setTextColor(0,0,0);
+      y += 4;
+    }
+    y += 9;
+  });
+
+  // Summe row
+  doc.setFillColor(31,41,55);
+  doc.rect(margin, y, W-margin*2, 8, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text('Summe', margin+2, y+5.5);
+  doc.text(fmtS(totalS), margin+2+cols[0]+cols[1]+cols[2]+cols[3], y+5.5);
+  doc.text(fmtS(sollS), margin+2+cols[0]+cols[1]+cols[2]+cols[3]+cols[4], y+5.5);
+  doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
+  y += 14;
+
+  // Photos section
+  const withPhotos = items.filter(i=>i.photo);
+  if (withPhotos.length > 0) {
+    if (y > 230) { doc.addPage(); y = 20; }
+    doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.text('Fotos', margin, y); y += 6;
+    doc.setFont('helvetica','normal');
+    let px = margin; let photoRowH = 0;
+    for (const item of withPhotos) {
+      if (y > 250) { doc.addPage(); y = 20; px = margin; }
+      try {
+        const imgW = 55, imgH = 42;
+        doc.addImage(item.photo, 'JPEG', px, y, imgW, imgH);
+        doc.setFontSize(7); doc.setTextColor(107,114,128);
+        doc.text(item.name.slice(0,22), px, y+imgH+3);
+        doc.setTextColor(0,0,0);
+        px += imgW + 4;
+        photoRowH = imgH + 8;
+        if (px + imgW > W - margin) { px = margin; y += photoRowH; photoRowH = 0; }
+      } catch(e) {}
+    }
+    if (photoRowH > 0) y += photoRowH;
+  }
+
+  // Footer
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7); doc.setTextColor(156,163,175);
+    doc.text(`Lean Plus · TSA Protokoll · Seite ${i}/${pageCount}`, margin, 292);
+    doc.text(new Date().toLocaleDateString('de-DE'), W-margin-20, 292);
+  }
+
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2,'0');
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  const yy = String(now.getFullYear()).slice(-2);
+  doc.save((cur.name||'TSA').replace(/\s+/g,'_')+'_'+dd+'-'+mm+'-'+yy+'.pdf');
+}
+
 /* ───────── Save / Load ───────── */
 function saveAndHome() {
   const idx = studies.findIndex(s => s.id === cur.id);
@@ -883,109 +1153,137 @@ function openStudy(id) {
 
 /* ───────── Excel Export (EKUV Format) ───────── */
 function exportCSV() {
-  if (typeof XLSX === 'undefined') {
-    alert('Excel-Bibliothek lädt noch, bitte kurz warten…');
-    return;
-  }
+  if (typeof XLSX === 'undefined') { alert('Excel-Bibliothek lädt noch…'); return; }
 
   const wb = XLSX.utils.book_new();
   const items = cur.items;
-  const totalIst = items.reduce((s,i) => s + i.ms/1000/60, 0);
-  const sollArr  = items.map(i => { const v = parseFloat(i.soll); return isNaN(v) ? i.ms/1000/60 : v/60; });
-  const totalSoll= sollArr.reduce((s,v) => s+v, 0);
-  const einspar  = Math.max(0, totalIst - totalSoll);
-  const pctSav   = totalIst > 0 ? Math.round(einspar / totalIst * 100) : 0;
+  const r = (v) => Math.round(v * 100) / 100;
+  const totalIst  = items.reduce((s,i) => s + i.ms/1000/60, 0);
+  const sollArr   = items.map(i => { const v = parseFloat(i.soll); return isNaN(v) ? i.ms/1000/60 : v/60; });
+  const totalSoll = sollArr.reduce((s,v) => s+v, 0);
+  const einspar   = Math.max(0, totalIst - totalSoll);
+  const pctSav    = totalIst > 0 ? Math.round(einspar / totalIst * 100) : 0;
+  const sumRow    = 7 + items.length; // 1-based Excel row of Summe
 
-  const rows = [];
+  /* ── SHEET 1: EKUV-Blatt ── */
+  const ekuvRows = [];
+  ekuvRows.push(["Tätigkeitsstrukturanalyse nach E K U V","","","","","","","","","","","Improve by Design",""]);
+  ekuvRows.push(["Datum","",cur.date,"","","","","","","","","",""]);
+  ekuvRows.push(["Ersteller","",cur.author||"","","","","","","","","","",""]);
+  ekuvRows.push(["Arbeitsprozess","",cur.name,"","","","","","","","","",""]);
+  ekuvRows.push(["","","","","","","","","","","","",""]);
+  ekuvRows.push(["Nr.","Arbeitsschritte","","Dauer (ist)\n\nZeiteinheit min","Eliminieren","Kombinieren","Umstellen","Vereinfachen","Intern","Extern","Dauer (soll)\n\nZeiteinheit\nmin","Bemerkung","Fotos"]);
 
-  // Row 1 — Title
-  rows.push(["Tätigkeitsstrukturanalyse nach E  K  U  V", "","","","","","","","","","",""]);
-  // Rows 2-4 — Meta
-  rows.push(["Datum","",cur.date,"","","","","","","","",""]);
-  rows.push(["Ersteller","",cur.author||"","","","","","","","","",""]);
-  rows.push(["Arbeitsprozess","",cur.name,"","","","","","","","",""]);
-  // Row 5 — spacer
-  rows.push(["","","","","","","","","","","",""]);
-  // Row 6 — Headers
-  rows.push(["Nr.","Arbeitsschritte","","Dauer IST\n(min)","E\nEliminieren","K\nKombinieren","U\nUmstellen","V\nVereinfachen","Intern","Extern","Dauer SOLL\n(min)","Bemerkung"]);
-
-  // Data rows
   items.forEach((item, idx) => {
-    const istMin = Math.round(item.ms / 1000 / 60 * 100) / 100;
-    const sollMin = item.soll ? Math.round(parseFloat(item.soll) / 60 * 100) / 100 : "";
-    rows.push([
-      idx+1,
-      item.name,
-      "",
+    const istMin  = r(item.ms / 1000 / 60);
+    const sollMin = item.soll !== '' ? r(parseFloat(item.soll) / 60) : '';
+    const fotoCount = item.photo ? '1 Foto' : (item.photos?.length ? `${item.photos.length} Foto(s)` : null);
+    ekuvRows.push([
+      idx+1, item.name, "",
       istMin,
-      item.ekuv.E ? "x" : "",
-      item.ekuv.K ? "x" : "",
-      item.ekuv.U ? "x" : "",
-      item.ekuv.V ? "x" : "",
-      item.ekuv.Int ? "x" : "",
-      item.ekuv.Ext ? "x" : "",
-      sollMin,
-      item.remark || ""
+      item.ekuv.E ? 'x' : '',
+      item.ekuv.K ? 'x' : '',
+      item.ekuv.U ? 'x' : '',
+      item.ekuv.V ? 'x' : '',
+      item.ekuv.Int ? 'x' : '',
+      item.ekuv.Ext ? 'x' : '',
+      sollMin !== '' ? sollMin : istMin,
+      item.remark || '',
+      fotoCount || null
     ]);
   });
 
-  // Summe row
-  const sumRow = 7 + items.length;
-  rows.push([
-    "Summe","","",
-    Math.round(totalIst*100)/100,
-    Math.round(items.filter(i=>i.ekuv.E).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
-    Math.round(items.filter(i=>i.ekuv.K).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
-    Math.round(items.filter(i=>i.ekuv.U).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
-    Math.round(items.filter(i=>i.ekuv.V).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
-    Math.round(items.filter(i=>i.ekuv.Int).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
-    Math.round(items.filter(i=>i.ekuv.Ext).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
-    Math.round(totalSoll*100)/100,
-    ""
+  // Summe
+  ekuvRows.push(["Summe","","",
+    r(totalIst),
+    r(items.filter(i=>i.ekuv.E).reduce((s,i)=>s+i.ms/1000/60,0)),
+    r(items.filter(i=>i.ekuv.K).reduce((s,i)=>s+i.ms/1000/60,0)),
+    r(items.filter(i=>i.ekuv.U).reduce((s,i)=>s+i.ms/1000/60,0)),
+    r(items.filter(i=>i.ekuv.V).reduce((s,i)=>s+i.ms/1000/60,0)),
+    r(items.filter(i=>i.ekuv.Int).reduce((s,i)=>s+i.ms/1000/60,0)),
+    r(items.filter(i=>i.ekuv.Ext).reduce((s,i)=>s+i.ms/1000/60,0)),
+    r(totalSoll), "", ""
   ]);
-
   // Spacer
-  rows.push(["","","","","","","","","","","",""]);
-
+  ekuvRows.push(["","","","","","","","","","","","",""]);
   // Einsparung
-  rows.push([
-    "Einsparung:","","",
-    Math.round(einspar*100)/100,
-    "min","","","","","","",
-    `(${pctSav}% Einsparung)`
-  ]);
+  ekuvRows.push(["Einsparung:","","", r(einspar), `min (${pctSav}%)`, "","","","","","","",""]);
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-
-  // ── Column widths ──
-  ws['!cols'] = [
-    {wch:6},{wch:38},{wch:4},{wch:13},{wch:13},{wch:13},
-    {wch:13},{wch:13},{wch:10},{wch:10},{wch:13},{wch:40}
+  const ws1 = XLSX.utils.aoa_to_sheet(ekuvRows);
+  ws1['!cols'] = [{wch:5.7},{wch:12.7},{wch:35.5},{wch:14.2},{wch:13},{wch:13},{wch:13},{wch:13},{wch:4},{wch:13},{wch:14.8},{wch:43},{wch:30}];
+  ws1['!rows'] = [{hpt:28},{hpt:18},{hpt:18},{hpt:18},{hpt:8},{hpt:55}];
+  for (let i=0; i<items.length; i++) ws1['!rows'].push({hpt:22});
+  ws1['!rows'].push({hpt:22},{hpt:8},{hpt:22});
+  ws1['!merges'] = [
+    {s:{r:0,c:0},e:{r:0,c:10}},
+    {s:{r:1,c:1},e:{r:1,c:1}},{s:{r:1,c:2},e:{r:1,c:7}},
+    {s:{r:2,c:1},e:{r:2,c:1}},{s:{r:2,c:2},e:{r:2,c:7}},
+    {s:{r:3,c:1},e:{r:3,c:1}},{s:{r:3,c:2},e:{r:3,c:7}},
+    {s:{r:5,c:1},e:{r:5,c:2}},
   ];
+  // Merge data rows col B:C
+  for (let i=0; i<items.length; i++) ws1['!merges'].push({s:{r:6+i,c:1},e:{r:6+i,c:2}});
+  // Summe merge A:C
+  ws1['!merges'].push({s:{r:sumRow-1,c:0},e:{r:sumRow-1,c:2}});
+  // Einsparung merge A:C
+  ws1['!merges'].push({s:{r:sumRow+1,c:0},e:{r:sumRow+1,c:2}});
+  XLSX.utils.book_append_sheet(wb, ws1, 'EKUV-Blatt');
 
-  // ── Row heights ──
-  ws['!rows'] = [{hpt:36},{hpt:18},{hpt:18},{hpt:18},{hpt:8},{hpt:46}];
-  for (let i=0; i<items.length; i++) ws['!rows'].push({hpt:22});
-  ws['!rows'].push({hpt:22},{hpt:8},{hpt:22});
+  /* ── SHEET 2: Diagramm ── */
+  const eK = r(items.filter(i=>i.ekuv.E).reduce((s,i)=>s+i.ms/1000/60,0));
+  const kK = r(items.filter(i=>i.ekuv.K).reduce((s,i)=>s+i.ms/1000/60,0));
+  const uK = r(items.filter(i=>i.ekuv.U).reduce((s,i)=>s+i.ms/1000/60,0));
+  const vK = r(items.filter(i=>i.ekuv.V).reduce((s,i)=>s+i.ms/1000/60,0));
+  const pct = (v) => totalIst > 0 ? Math.round(v/totalIst*100) : 0;
 
-  // ── Merges ──
-  ws['!merges'] = [
-    {s:{r:0,c:0},e:{r:0,c:11}},   // Title
-    {s:{r:1,c:1},e:{r:1,c:2}},{s:{r:1,c:4},e:{r:1,c:11}},
-    {s:{r:2,c:1},e:{r:2,c:2}},{s:{r:2,c:4},e:{r:2,c:11}},
-    {s:{r:3,c:1},e:{r:3,c:2}},{s:{r:3,c:4},e:{r:3,c:11}},
-    {s:{r:5,c:1},e:{r:5,c:2}},    // Header Arbeitsschritte
-    {s:{r:sumRow+1,c:0},e:{r:sumRow+1,c:2}}, // Einsparung label
-    {s:{r:sumRow+1,c:4},e:{r:sumRow+1,c:5}}, // "min"
-    {s:{r:sumRow+1,c:11},e:{r:sumRow+1,c:11}},
+  const diagRows = [
+    [null,'Wasserfall-Diagramm',null,null,null,'Improve by Design'],
+    [null,'Arbeitsprozess',null,cur.name],
+    [null,'Datum',null,cur.date],
+    [null,'Ersteller',null,cur.author||''],
+    [],
+    [null,'IST (Vorher)',null, r(totalIst),'min', null,null,null,null,null,'Werte für das Wasserfall-Diagramm'],
+    [null,'- Eliminieren (E)',null, eK>0?-eK:0, eK>0?`min (-${pct(eK)}%)`:'', null,null,null,null,null,'Kategorie','Kurzform','IST','Basis','Stufen','Reduktion %'],
+    [null,'- Kombinieren (K)',null, kK>0?-kK:0, kK>0?`min (-${pct(kK)}%)`:'', null,null,null,null,null,'Dauer (IST)','IST',r(totalIst),0,r(totalIst),'100%'],
+    [null,'- Umstellen (U)',null,  uK>0?-uK:0, uK>0?`min (-${pct(uK)}%)`:'', null,null,null,null,null,'Eliminieren','E',null,r(totalIst),0,'0%'],
+    [null,'- Vereinfachen (V)',null,vK>0?-vK:0, vK>0?`min (-${pct(vK)}%)`:'', null,null,null,null,null,'Kombinieren','K',null,r(totalIst-eK),kK,`${pct(kK)}%`],
+    [null,null,null,null,null,null,null,null,null,null,'Umstellen','U',null,r(totalIst-eK-kK),uK,`${pct(uK)}%`],
+    [null,'= SOLL (Nachher)',null,r(totalSoll),`min (${Math.round(totalSoll/Math.max(totalIst,0.001)*100)}%)`,null,null,null,null,null,'Vereinfachen','V',null,r(totalSoll),0,'0%'],
+    [null,null,null,null,null,null,null,null,null,null,'Nachher (SOLL)','SOLL',null,0,r(totalSoll),`${Math.round(totalSoll/Math.max(totalIst,0.001)*100)}%`],
+    [null,'Gesamte Einsparung:',null,r(einspar),`min (${pctSav}% Reduktion)`],
+    [],
+    [null,'Tipp: Spalten L-O (Zeilen 8-14) auswählen → gestapeltes Balkendiagramm einfügen'],
   ];
+  const ws2 = XLSX.utils.aoa_to_sheet(diagRows);
+  ws2['!cols'] = [{wch:3},{wch:22},{wch:4},{wch:12},{wch:16},{wch:4},{wch:4},{wch:4},{wch:4},{wch:4},{wch:20},{wch:14},{wch:8},{wch:8},{wch:8},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Diagramm');
 
-  XLSX.utils.book_append_sheet(wb, ws, "EKUV-Blatt");
+  /* ── SHEET 3: Fotos ── */
+  const fotoRows = [
+    [`Fotos - ${cur.name}`, null, null, 'Improve by Design'],
+    ['Schritt','Beschreibung','Foto (Base64 / URL)','Aufgenommen'],
+  ];
+  const now2 = new Date().toISOString();
+  items.forEach((item, idx) => {
+    if (item.photo) {
+      fotoRows.push([idx+1, item.name, item.photo.startsWith('data:') ? '[Bild eingebettet]' : item.photo, now2]);
+    }
+  });
+  if (fotoRows.length === 2) fotoRows.push(['–','Keine Fotos aufgenommen','','']);
 
-  const filename = (cur.name||'TSA').replace(/\s+/g,'_') + '_' + (cur.date||'') + '.xlsx';
-  XLSX.writeFile(wb, filename);
+  const ws3 = XLSX.utils.aoa_to_sheet(fotoRows);
+  ws3['!cols'] = [{wch:8},{wch:35},{wch:80},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Fotos');
+
+  /* ── Filename & save ── */
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2,'0');
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  const yy = String(now.getFullYear()).slice(-2);
+  XLSX.writeFile(wb, (cur.name||'TSA').replace(/\s+/g,'_')+'_'+dd+'-'+mm+'-'+yy+'.xlsx');
 }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
