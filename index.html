@@ -1141,6 +1141,11 @@ body {
         <span class="s5-navitem-icon">🏭</span>
         <span class="s5-navitem-label">Standortvergleich</span>
       </button>
+      <button class="s5-navitem" id="snav-actions-all" onclick="s5ShowSection('actions-all')">
+        <span class="s5-navitem-icon">📌</span>
+        <span class="s5-navitem-label">Maßnahmen</span>
+        <span class="s5-navitem-badge" id="snav-badge-actions"></span>
+      </button>
       <div class="s5-navdivider"></div>
       <button class="s5-navitem" id="snav-settings" onclick="s5ShowSection('settings')">
         <span class="s5-navitem-icon">⚙️</span>
@@ -1156,6 +1161,7 @@ body {
     <button class="s5-mobile-navitem" id="mnav-active" onclick="s5ShowSection('active')" style="display:none">✏️<span>Aktiv</span></button>
     <button class="s5-mobile-navitem" id="mnav-result" onclick="s5ShowSection('result')" style="display:none">📊<span>Ergebnis</span></button>
     <button class="s5-mobile-navitem" id="mnav-compare" onclick="s5ShowSection('compare')">🏭<span>Vergleich</span></button>
+    <button class="s5-mobile-navitem" id="mnav-actions-all" onclick="s5ShowSection('actions-all')">📌<span>Maßnahmen</span></button>
     <button class="s5-mobile-navitem" id="mnav-settings" onclick="s5ShowSection('settings')">⚙️<span>Einst.</span></button>
   </div>
 
@@ -1349,6 +1355,41 @@ body {
         <div id="locationDetailContent"></div>
       </div>
       <div id="compareContent"></div>
+    </div>
+
+    <!-- ══ SECTION: MASSNAHMEN ══ -->
+    <div class="s5-section" id="s5sec-actions-all">
+      <div class="s5-section-header">
+        <div>
+          <div class="s5-section-title">Maßnahmen</div>
+          <div class="s5-section-sub" id="actions-all-sub">Alle Maßnahmen aus allen Audits</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="field-input" id="actions-filter-status" onchange="renderAllActions()" style="font-size:12px;padding:5px 28px 5px 9px;width:auto">
+            <option value="all">Alle</option>
+            <option value="open">Offen</option>
+            <option value="done">Erledigt</option>
+          </select>
+          <select class="field-input" id="actions-filter-location" onchange="renderAllActions()" style="font-size:12px;padding:5px 28px 5px 9px;width:auto;max-width:200px">
+            <option value="all">Alle Standorte</option>
+          </select>
+          <select class="field-input" id="actions-sort" onchange="renderAllActions()" style="font-size:12px;padding:5px 28px 5px 9px;width:auto">
+            <option value="due-asc">Fälligkeit ↑</option>
+            <option value="due-desc">Fälligkeit ↓</option>
+            <option value="location">Standort A–Z</option>
+            <option value="audit-desc">Audit (neueste zuerst)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div class="kpi-row" id="actions-kpi" style="margin-bottom:16px">
+        <div class="kpi"><div class="kpi-label">Offen</div><div class="kpi-val" id="akpi-open" style="color:#dc2626">–</div></div>
+        <div class="kpi"><div class="kpi-label">Überfällig</div><div class="kpi-val" id="akpi-overdue" style="color:#dc2626">–</div></div>
+        <div class="kpi"><div class="kpi-label">Erledigt</div><div class="kpi-val" id="akpi-done" style="color:#059669">–</div></div>
+      </div>
+
+      <div id="actions-all-list"></div>
     </div>
 
     <!-- ══ SECTION: EINSTELLUNGEN ══ -->
@@ -1946,7 +1987,7 @@ let photoTarget = null; // {auditId, questionId}
    NAVIGATION
 ═══════════════════════════════════════════ */
 /* ─── 5S SECTION NAVIGATION ─── */
-const S5_SECTIONS = ['audits','new','active','result','compare','settings'];
+const S5_SECTIONS = ['audits','new','active','result','compare','actions-all','settings'];
 
 function s5ShowSection(sec) {
   // Sections
@@ -1965,10 +2006,11 @@ function s5ShowSection(sec) {
   const content = document.querySelector('.s5-content');
   if (content) content.scrollTop = 0;
   // Trigger renders
-  if (sec === 'audits')   renderHome();
-  if (sec === 'new')      renderSetup();
-  if (sec === 'settings') renderAdmin();
-  if (sec === 'compare')  { closeLocationDrilldown(); renderCompare(); }
+  if (sec === 'audits')       renderHome();
+  if (sec === 'new')          renderSetup();
+  if (sec === 'settings')     renderAdmin();
+  if (sec === 'compare')      { closeLocationDrilldown(); renderCompare(); }
+  if (sec === 'actions-all')  renderAllActions();
   // Update badge
   updateS5Badge();
 }
@@ -1977,6 +2019,16 @@ function updateS5Badge() {
   const count = db.audits.length;
   const el = document.getElementById('snav-badge-audits');
   if (el) el.textContent = count;
+
+  // Open actions badge
+  const openCount = db.audits.reduce((s,a) => s + (a.actions||[]).filter(x=>!x.done).length, 0);
+  const actBadge = document.getElementById('snav-badge-actions');
+  if (actBadge) {
+    actBadge.textContent = openCount || '';
+    actBadge.style.background = openCount ? '#fee2e2' : '';
+    actBadge.style.color      = openCount ? '#dc2626' : '';
+  }
+
   // Show/hide active + result nav items
   const hasActive = cur && cur.status === 'active';
   const hasResult = cur && cur.status !== 'active';
@@ -1988,6 +2040,151 @@ function updateS5Badge() {
     const el = document.getElementById(id);
     if (el) el.style.display = hasResult ? 'flex' : 'none';
   });
+}
+
+/* ═══════════════════════════════════════════
+   MASSNAHMEN ÜBERSICHT
+═══════════════════════════════════════════ */
+function renderAllActions() {
+  // Collect all actions from all audits
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const all = [];
+  db.audits.forEach(audit => {
+    (audit.actions || []).forEach(act => {
+      all.push({
+        ...act,
+        auditId:   audit.id,
+        auditDate: audit.date,
+        location:  audit.location + (audit.dept ? ' – ' + audit.dept : ''),
+        auditor:   audit.auditor,
+      });
+    });
+  });
+
+  // KPIs (always from full dataset)
+  const openAll    = all.filter(a => !a.done).length;
+  const overdueAll = all.filter(a => !a.done && a.dueDate && new Date(a.dueDate) < today).length;
+  const doneAll    = all.filter(a =>  a.done).length;
+  const kpiOpen    = document.getElementById('akpi-open');
+  const kpiOd      = document.getElementById('akpi-overdue');
+  const kpiDone    = document.getElementById('akpi-done');
+  if (kpiOpen) kpiOpen.textContent = openAll;
+  if (kpiOd)   { kpiOd.textContent = overdueAll; kpiOd.style.color = overdueAll ? '#dc2626' : '#059669'; }
+  if (kpiDone) kpiDone.textContent = doneAll;
+
+  // Populate location filter (once)
+  const locSel = document.getElementById('actions-filter-location');
+  if (locSel && locSel.options.length <= 1) {
+    const locs = [...new Set(all.map(a => a.location))].sort();
+    locs.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l; opt.textContent = l;
+      locSel.appendChild(opt);
+    });
+  }
+
+  // Read filters
+  const statusFilter   = document.getElementById('actions-filter-status')?.value  || 'all';
+  const locationFilter = document.getElementById('actions-filter-location')?.value || 'all';
+  const sort           = document.getElementById('actions-sort')?.value            || 'due-asc';
+
+  // Filter
+  let filtered = all.filter(a => {
+    if (statusFilter === 'open' && a.done)  return false;
+    if (statusFilter === 'done' && !a.done) return false;
+    if (locationFilter !== 'all' && a.location !== locationFilter) return false;
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a, b) => {
+    if (sort === 'due-asc')    return (a.dueDate||'9999') < (b.dueDate||'9999') ? -1 : 1;
+    if (sort === 'due-desc')   return (a.dueDate||'') > (b.dueDate||'') ? -1 : 1;
+    if (sort === 'location')   return a.location.localeCompare(b.location);
+    if (sort === 'audit-desc') return b.auditDate.localeCompare(a.auditDate);
+    return 0;
+  });
+
+  // Sub-label
+  const sub = document.getElementById('actions-all-sub');
+  if (sub) sub.textContent = `${filtered.length} von ${all.length} Maßnahme${all.length!==1?'n':''}`;
+
+  const el = document.getElementById('actions-all-list');
+  if (!el) return;
+
+  if (!all.length) {
+    el.innerHTML = '<div class="empty-hint"><div style="font-size:32px;margin-bottom:8px">📌</div>Noch keine Maßnahmen erfasst.<br><small>Maßnahmen werden beim Audit unter jeder Frage angelegt.</small></div>';
+    return;
+  }
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty-hint">Keine Maßnahmen für diese Filterauswahl.</div>';
+    return;
+  }
+
+  // Group by location for better readability
+  const groups = {};
+  filtered.forEach(a => {
+    if (!groups[a.location]) groups[a.location] = [];
+    groups[a.location].push(a);
+  });
+
+  const groupsToRender = sort === 'location'
+    ? Object.entries(groups).sort(([a],[b]) => a.localeCompare(b))
+    : [['', filtered]]; // flat list for other sorts
+
+  el.innerHTML = groupsToRender.map(([groupName, items]) => {
+    const groupHeader = groupName
+      ? `<div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #e5e7eb">${groupName}</div>`
+      : '';
+
+    const rows = items.map(act => {
+      const isOverdue = !act.done && act.dueDate && new Date(act.dueDate) < today;
+      const isDone    = act.done;
+      const dueDateColor = isDone ? '#059669' : isOverdue ? '#dc2626' : act.dueDate ? '#374151' : '#9ca3af';
+      const dueBg        = isDone ? '#d1fae5' : isOverdue ? '#fee2e2' : '#f3f4f6';
+      const dueText      = act.dueDate || '–';
+
+      // Safe key for onclick (avoid quote issues)
+      const safeAuditId = act.auditId;
+      const safeIdx     = all.indexOf(act); // use index as stable key
+
+      const doneBtn = isDone
+        ? `<button onclick="toggleActionDone(event,'${safeAuditId}',${safeIdx})"
+             style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;
+                    border:1.5px solid #059669;background:#d1fae5;color:#059669;
+                    font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">
+             <span style="font-size:15px">✓</span> Erledigt
+           </button>`
+        : `<button onclick="toggleActionDone(event,'${safeAuditId}',${safeIdx})"
+             style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;
+                    border:1.5px solid #d1d5db;background:#fff;color:#374151;
+                    font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">
+             <span style="width:14px;height:14px;border:1.5px solid #d1d5db;border-radius:3px;display:inline-block;background:#fff"></span>
+             Als erledigt markieren
+           </button>`;
+
+      return `<div style="background:${isDone?'#f9fafb':'#fff'};border:1px solid ${isOverdue&&!isDone?'#fca5a5':isDone?'#e5e7eb':'#e5e7eb'};border-radius:10px;padding:13px 14px;margin-bottom:8px;transition:opacity .2s;${isDone?'opacity:0.7':''}">
+        <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:3px;${isDone?'text-decoration:line-through;color:#9ca3af':''}">${act.description || '(Keine Beschreibung)'}</div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:7px">${act.questionText ? act.questionText.substring(0,60)+'…' : ''}</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <span style="font-size:12px;color:#374151">👤 ${act.responsible || '–'}</span>
+              <span style="font-size:12px;background:${dueBg};color:${dueDateColor};padding:2px 8px;border-radius:6px;font-weight:500">📅 ${dueText}${isOverdue?' ⚠️':''}</span>
+              ${!groupName ? `<span style="font-size:11px;color:#9ca3af">📍 ${act.location}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+            ${doneBtn}
+            <button class="btn-sm" style="font-size:11px;padding:4px 9px" onclick="openAudit('${act.auditId}');s5ShowSection('result')">Audit →</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    return groupHeader + rows;
+  }).join('');
 }
 
 // Compatibility shims — old code calls go() and openAdmin()
@@ -2043,12 +2240,17 @@ function renderHome() {
   if (audits.length) {
     const avg = Math.round(audits.reduce((s,a)=>s+(a.score||0),0)/audits.length);
     const open = audits.reduce((s,a)=>s+(a.actions?.filter(x=>!x.done).length||0),0);
+    const demoCount = audits.filter(a => a.id.startsWith('demo')).length;
     document.getElementById('homeStats').innerHTML = `
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-label">Audits gesamt</div><div class="kpi-val">${audits.length}</div></div>
         <div class="kpi"><div class="kpi-label">Ø Score</div><div class="kpi-val" style="color:${avg>=80?'#059669':avg>=60?'#d97706':'#dc2626'}">${avg}%</div></div>
         <div class="kpi"><div class="kpi-label">Offene Maßnahmen</div><div class="kpi-val" style="color:${open?'#dc2626':'#059669'}">${open}</div></div>
-      </div>`;
+      </div>
+      ${demoCount ? `<div style="display:flex;align-items:center;justify-content:space-between;background:#fef9ec;border:1px solid #fcd34d;border-radius:9px;padding:9px 13px;margin-bottom:8px">
+        <span style="font-size:12px;color:#78350f">⚠️ ${demoCount} Demo-Audit${demoCount>1?'s':''} vorhanden</span>
+        <button class="btn-sm" onclick="deleteDemoAudits()" style="font-size:11px;padding:4px 10px;background:#fff;border-color:#fcd34d;color:#92400e">Alle Demo-Audits löschen</button>
+      </div>` : ''}`;
   } else {
     document.getElementById('homeStats').innerHTML = '';
   }
@@ -2151,17 +2353,29 @@ function renderAuditList() {
     const c  = a.score>=80?'#059669':a.score>=60?'#d97706':'#dc2626';
     const bg = a.score>=80?'#d1fae5':a.score>=60?'#fef3c7':'#fee2e2';
     const open = (a.actions||[]).filter(x=>!x.done).length;
-    return `<div class="audit-card" onclick="openAudit('${a.id}')">
+    const isDemo = a.id.startsWith('demo');
+    return `<div class="audit-card" style="position:relative" onclick="openAudit('${a.id}')">
       <div class="score-bubble" style="background:${bg};color:${c}">${a.score}%</div>
       <div class="audit-card-body">
-        <div class="audit-card-title">${auditLocKey(a)}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="audit-card-title">${auditLocKey(a)}</div>
+          ${isDemo?'<span style="font-size:9px;font-weight:600;background:#f3f4f6;color:#9ca3af;padding:1px 6px;border-radius:4px">DEMO</span>':''}
+        </div>
         <div class="audit-card-meta">${a.auditor} · ${a.date}</div>
         <div style="margin-top:6px">
           <div class="prog-track"><div class="prog-fill" style="width:${a.score}%;background:${c}"></div></div>
         </div>
         ${open?`<div style="margin-top:5px"><span class="badge badge-yellow">${open} offene Maßnahme${open>1?'n':''}</span></div>`:''}
       </div>
-      <div style="color:#d1d5db;font-size:16px">›</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0">
+        <div style="color:#d1d5db;font-size:16px">›</div>
+        <button
+          onclick="event.stopPropagation();deleteAudit('${a.id}')"
+          title="Audit löschen"
+          style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px;padding:2px 4px;border-radius:5px;line-height:1;transition:color .15s"
+          onmouseover="this.style.color='#dc2626'"
+          onmouseout="this.style.color='#d1d5db'">✕</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -2173,6 +2387,32 @@ function openAudit(id) {
   updateS5Badge();
   s5ShowSection('result');
   showResult();
+}
+
+function deleteAudit(id) {
+  const a = db.audits.find(x=>x.id===id);
+  if (!a) return;
+  const label = auditLocKey(a) + ' (' + a.date + ')';
+  if (!confirm(`Audit "${label}" wirklich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.`)) return;
+  db.audits = db.audits.filter(x => x.id !== id);
+  // Reset cur if it was the deleted audit
+  if (cur && cur.id === id) cur = null;
+  saveDB();
+  updateS5Badge();
+  renderHome();
+  showToast('Audit gelöscht');
+}
+
+function deleteDemoAudits() {
+  const count = db.audits.filter(a => a.id.startsWith('demo')).length;
+  if (!count) { showToast('Keine Demo-Audits vorhanden'); return; }
+  if (!confirm(`Alle ${count} Demo-Audit${count>1?'s':''} löschen?\nEigene Audits bleiben erhalten.`)) return;
+  db.audits = db.audits.filter(a => !a.id.startsWith('demo'));
+  if (cur && cur.id.startsWith('demo')) cur = null;
+  saveDB();
+  updateS5Badge();
+  renderHome();
+  showToast(count + ' Demo-Audit' + (count>1?'s':'') + ' gelöscht');
 }
 
 /* ═══════════════════════════════════════════
@@ -2495,6 +2735,35 @@ function openLocationDetail(locEncoded) {
       });
     }
   }, 50);
+}
+
+function toggleActionDone(event, auditId, globalIdx) {
+  event.stopPropagation();
+
+  // Rebuild the same flat list that renderAllActions used
+  const all = [];
+  db.audits.forEach(audit => {
+    (audit.actions || []).forEach(act => {
+      all.push({ act, audit });
+    });
+  });
+
+  const entry = all[globalIdx];
+  if (!entry) return;
+
+  entry.act.done = !entry.act.done;
+  saveDB();
+  updateS5Badge();
+  renderAllActions();
+
+  // Also sync to cur if this audit is open
+  if (cur && cur.id === auditId && cur.actions) {
+    const curAct = cur.actions.find(a =>
+      a.description === entry.act.description &&
+      a.questionText === entry.act.questionText
+    );
+    if (curAct) curAct.done = entry.act.done;
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -3179,122 +3448,6 @@ function showToast(msg) {
 ═══════════════════════════════════════════ */
 /* ─── INIT ─── */
 renderLanding();
-</script>
-
-<!-- ═══════════════════════════════════
-     PASSWORTSCHUTZ
-═══════════════════════════════════ -->
-<style>
-#lp-login-overlay {
-  position: fixed; inset: 0; z-index: 9999;
-  background: #f3f4f6;
-  display: flex; align-items: center; justify-content: center;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-}
-#lp-login-box {
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
-  padding: 40px 36px; width: 100%; max-width: 380px;
-  box-shadow: 0 4px 24px rgba(0,0,0,.08);
-  text-align: center;
-}
-#lp-login-logo {
-  font-size: 22px; font-weight: 700; color: #111; margin-bottom: 6px;
-}
-#lp-login-logo span { color: #2563eb; }
-#lp-login-sub {
-  font-size: 13px; color: #6b7280; margin-bottom: 28px;
-}
-#lp-login-label {
-  display: block; text-align: left;
-  font-size: 12px; font-weight: 600; color: #374151;
-  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px;
-}
-#lp-login-input {
-  width: 100%; padding: 10px 13px;
-  border: 1.5px solid #d1d5db; border-radius: 9px;
-  font-size: 15px; font-family: inherit; outline: none;
-  transition: border-color .15s; margin-bottom: 14px;
-  text-align: center; letter-spacing: .08em;
-}
-#lp-login-input:focus { border-color: #2563eb; }
-#lp-login-btn {
-  width: 100%; padding: 12px;
-  background: #111; color: #fff; border: none; border-radius: 9px;
-  font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit;
-  transition: background .15s;
-}
-#lp-login-btn:hover { background: #222; }
-#lp-login-error {
-  margin-top: 11px; font-size: 13px; color: #dc2626;
-  min-height: 18px; display: none;
-}
-#lp-login-attempts {
-  margin-top: 8px; font-size: 11px; color: #9ca3af;
-}
-</style>
-
-<div id="lp-login-overlay">
-  <div id="lp-login-box">
-    <div id="lp-login-logo">Lean<span>Plus</span></div>
-    <div id="lp-login-sub">Bitte Passwort eingeben</div>
-    <label id="lp-login-label" for="lp-login-input">Passwort</label>
-    <input id="lp-login-input" type="password" placeholder="••••••••"
-      onkeydown="if(event.key==='Enter')lpCheckPassword()">
-    <button id="lp-login-btn" onclick="lpCheckPassword()">Anmelden →</button>
-    <div id="lp-login-error">Falsches Passwort. Bitte erneut versuchen.</div>
-    <div id="lp-login-attempts"></div>
-  </div>
-</div>
-
-<script>
-(function() {
-  // ═══════════════════════════════════
-  // PASSWORT HIER ÄNDERN ↓
-  const LP_PASSWORD = 'Coperion2025';
-  // ═══════════════════════════════════
-
-  const SESSION_KEY = 'lp_auth';
-  let attempts = 0;
-  const MAX_ATTEMPTS = 5;
-
-  // Check if already authenticated in this session
-  if (sessionStorage.getItem(SESSION_KEY) === '1') {
-    document.getElementById('lp-login-overlay').style.display = 'none';
-  }
-
-  window.lpCheckPassword = function() {
-    const input = document.getElementById('lp-login-input');
-    const error = document.getElementById('lp-login-error');
-    const attemptsEl = document.getElementById('lp-login-attempts');
-    const btn = document.getElementById('lp-login-btn');
-
-    if (input.value === LP_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, '1');
-      const overlay = document.getElementById('lp-login-overlay');
-      overlay.style.transition = 'opacity .3s';
-      overlay.style.opacity = '0';
-      setTimeout(() => overlay.style.display = 'none', 300);
-    } else {
-      attempts++;
-      error.style.display = 'block';
-      input.value = '';
-      input.focus();
-      input.style.borderColor = '#dc2626';
-      setTimeout(() => input.style.borderColor = '', 800);
-
-      const remaining = MAX_ATTEMPTS - attempts;
-      if (remaining <= 0) {
-        btn.disabled = true;
-        input.disabled = true;
-        btn.textContent = 'Gesperrt';
-        error.textContent = 'Zu viele Versuche. Bitte Seite neu laden.';
-        attemptsEl.textContent = '';
-      } else {
-        attemptsEl.textContent = remaining + ' Versuch' + (remaining === 1 ? '' : 'e') + ' verbleibend';
-      }
-    }
-  };
-})();
 </script>
 </body>
 </html>
