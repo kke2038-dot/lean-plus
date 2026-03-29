@@ -3180,5 +3180,121 @@ function showToast(msg) {
 /* ─── INIT ─── */
 renderLanding();
 </script>
+
+<!-- ═══════════════════════════════════
+     PASSWORTSCHUTZ
+═══════════════════════════════════ -->
+<style>
+#lp-login-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #f3f4f6;
+  display: flex; align-items: center; justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+#lp-login-box {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
+  padding: 40px 36px; width: 100%; max-width: 380px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.08);
+  text-align: center;
+}
+#lp-login-logo {
+  font-size: 22px; font-weight: 700; color: #111; margin-bottom: 6px;
+}
+#lp-login-logo span { color: #2563eb; }
+#lp-login-sub {
+  font-size: 13px; color: #6b7280; margin-bottom: 28px;
+}
+#lp-login-label {
+  display: block; text-align: left;
+  font-size: 12px; font-weight: 600; color: #374151;
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px;
+}
+#lp-login-input {
+  width: 100%; padding: 10px 13px;
+  border: 1.5px solid #d1d5db; border-radius: 9px;
+  font-size: 15px; font-family: inherit; outline: none;
+  transition: border-color .15s; margin-bottom: 14px;
+  text-align: center; letter-spacing: .08em;
+}
+#lp-login-input:focus { border-color: #2563eb; }
+#lp-login-btn {
+  width: 100%; padding: 12px;
+  background: #111; color: #fff; border: none; border-radius: 9px;
+  font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit;
+  transition: background .15s;
+}
+#lp-login-btn:hover { background: #222; }
+#lp-login-error {
+  margin-top: 11px; font-size: 13px; color: #dc2626;
+  min-height: 18px; display: none;
+}
+#lp-login-attempts {
+  margin-top: 8px; font-size: 11px; color: #9ca3af;
+}
+</style>
+
+<div id="lp-login-overlay">
+  <div id="lp-login-box">
+    <div id="lp-login-logo">Lean<span>Plus</span></div>
+    <div id="lp-login-sub">Bitte Passwort eingeben</div>
+    <label id="lp-login-label" for="lp-login-input">Passwort</label>
+    <input id="lp-login-input" type="password" placeholder="••••••••"
+      onkeydown="if(event.key==='Enter')lpCheckPassword()">
+    <button id="lp-login-btn" onclick="lpCheckPassword()">Anmelden →</button>
+    <div id="lp-login-error">Falsches Passwort. Bitte erneut versuchen.</div>
+    <div id="lp-login-attempts"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ═══════════════════════════════════
+  // PASSWORT HIER ÄNDERN ↓
+  const LP_PASSWORD = 'Coperion2025';
+  // ═══════════════════════════════════
+
+  const SESSION_KEY = 'lp_auth';
+  let attempts = 0;
+  const MAX_ATTEMPTS = 5;
+
+  // Check if already authenticated in this session
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    document.getElementById('lp-login-overlay').style.display = 'none';
+  }
+
+  window.lpCheckPassword = function() {
+    const input = document.getElementById('lp-login-input');
+    const error = document.getElementById('lp-login-error');
+    const attemptsEl = document.getElementById('lp-login-attempts');
+    const btn = document.getElementById('lp-login-btn');
+
+    if (input.value === LP_PASSWORD) {
+      sessionStorage.setItem(SESSION_KEY, '1');
+      const overlay = document.getElementById('lp-login-overlay');
+      overlay.style.transition = 'opacity .3s';
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.style.display = 'none', 300);
+    } else {
+      attempts++;
+      error.style.display = 'block';
+      input.value = '';
+      input.focus();
+      input.style.borderColor = '#dc2626';
+      setTimeout(() => input.style.borderColor = '', 800);
+
+      const remaining = MAX_ATTEMPTS - attempts;
+      if (remaining <= 0) {
+        btn.disabled = true;
+        input.disabled = true;
+        btn.textContent = 'Gesperrt';
+        error.textContent = 'Zu viele Versuche. Bitte Seite neu laden.';
+        attemptsEl.textContent = '';
+      } else {
+        attemptsEl.textContent = remaining + ' Versuch' + (remaining === 1 ? '' : 'e') + ' verbleibend';
+      }
+    }
+  };
+})();
+</script>
 </body>
 </html>
