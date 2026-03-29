@@ -881,20 +881,111 @@ function openStudy(id) {
   resetTimer(); renderTaList(); goReview();
 }
 
-/* ───────── CSV Export ───────── */
+/* ───────── Excel Export (EKUV Format) ───────── */
 function exportCSV() {
-  const rows = [['Nr','Tätigkeit','IST (s)','E','K','U','V','Int','Ext','SOLL (s)','Bemerkung']];
-  cur.items.forEach((i,idx) => {
-    rows.push([idx+1, i.name, Math.round(i.ms/1000),
-      i.ekuv.E?'x':'', i.ekuv.K?'x':'', i.ekuv.U?'x':'', i.ekuv.V?'x':'', i.ekuv.Int?'x':'', i.ekuv.Ext?'x':'',
-      i.soll||'', i.remark]);
+  if (typeof XLSX === 'undefined') {
+    alert('Excel-Bibliothek lädt noch, bitte kurz warten…');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+  const items = cur.items;
+  const totalIst = items.reduce((s,i) => s + i.ms/1000/60, 0);
+  const sollArr  = items.map(i => { const v = parseFloat(i.soll); return isNaN(v) ? i.ms/1000/60 : v/60; });
+  const totalSoll= sollArr.reduce((s,v) => s+v, 0);
+  const einspar  = Math.max(0, totalIst - totalSoll);
+  const pctSav   = totalIst > 0 ? Math.round(einspar / totalIst * 100) : 0;
+
+  const rows = [];
+
+  // Row 1 — Title
+  rows.push(["Tätigkeitsstrukturanalyse nach E  K  U  V", "","","","","","","","","","",""]);
+  // Rows 2-4 — Meta
+  rows.push(["Datum","",cur.date,"","","","","","","","",""]);
+  rows.push(["Ersteller","",cur.author||"","","","","","","","","",""]);
+  rows.push(["Arbeitsprozess","",cur.name,"","","","","","","","",""]);
+  // Row 5 — spacer
+  rows.push(["","","","","","","","","","","",""]);
+  // Row 6 — Headers
+  rows.push(["Nr.","Arbeitsschritte","","Dauer IST\n(min)","E\nEliminieren","K\nKombinieren","U\nUmstellen","V\nVereinfachen","Intern","Extern","Dauer SOLL\n(min)","Bemerkung"]);
+
+  // Data rows
+  items.forEach((item, idx) => {
+    const istMin = Math.round(item.ms / 1000 / 60 * 100) / 100;
+    const sollMin = item.soll ? Math.round(parseFloat(item.soll) / 60 * 100) / 100 : "";
+    rows.push([
+      idx+1,
+      item.name,
+      "",
+      istMin,
+      item.ekuv.E ? "x" : "",
+      item.ekuv.K ? "x" : "",
+      item.ekuv.U ? "x" : "",
+      item.ekuv.V ? "x" : "",
+      item.ekuv.Int ? "x" : "",
+      item.ekuv.Ext ? "x" : "",
+      sollMin,
+      item.remark || ""
+    ]);
   });
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
-  a.download = cur.name.replace(/\s+/g,'_') + '_TSA.csv';
-  a.click();
+
+  // Summe row
+  const sumRow = 7 + items.length;
+  rows.push([
+    "Summe","","",
+    Math.round(totalIst*100)/100,
+    Math.round(items.filter(i=>i.ekuv.E).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
+    Math.round(items.filter(i=>i.ekuv.K).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
+    Math.round(items.filter(i=>i.ekuv.U).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
+    Math.round(items.filter(i=>i.ekuv.V).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
+    Math.round(items.filter(i=>i.ekuv.Int).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
+    Math.round(items.filter(i=>i.ekuv.Ext).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100,
+    Math.round(totalSoll*100)/100,
+    ""
+  ]);
+
+  // Spacer
+  rows.push(["","","","","","","","","","","",""]);
+
+  // Einsparung
+  rows.push([
+    "Einsparung:","","",
+    Math.round(einspar*100)/100,
+    "min","","","","","","",
+    `(${pctSav}% Einsparung)`
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // ── Column widths ──
+  ws['!cols'] = [
+    {wch:6},{wch:38},{wch:4},{wch:13},{wch:13},{wch:13},
+    {wch:13},{wch:13},{wch:10},{wch:10},{wch:13},{wch:40}
+  ];
+
+  // ── Row heights ──
+  ws['!rows'] = [{hpt:36},{hpt:18},{hpt:18},{hpt:18},{hpt:8},{hpt:46}];
+  for (let i=0; i<items.length; i++) ws['!rows'].push({hpt:22});
+  ws['!rows'].push({hpt:22},{hpt:8},{hpt:22});
+
+  // ── Merges ──
+  ws['!merges'] = [
+    {s:{r:0,c:0},e:{r:0,c:11}},   // Title
+    {s:{r:1,c:1},e:{r:1,c:2}},{s:{r:1,c:4},e:{r:1,c:11}},
+    {s:{r:2,c:1},e:{r:2,c:2}},{s:{r:2,c:4},e:{r:2,c:11}},
+    {s:{r:3,c:1},e:{r:3,c:2}},{s:{r:3,c:4},e:{r:3,c:11}},
+    {s:{r:5,c:1},e:{r:5,c:2}},    // Header Arbeitsschritte
+    {s:{r:sumRow+1,c:0},e:{r:sumRow+1,c:2}}, // Einsparung label
+    {s:{r:sumRow+1,c:4},e:{r:sumRow+1,c:5}}, // "min"
+    {s:{r:sumRow+1,c:11},e:{r:sumRow+1,c:11}},
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, "EKUV-Blatt");
+
+  const filename = (cur.name||'TSA').replace(/\s+/g,'_') + '_' + (cur.date||'') + '.xlsx';
+  XLSX.writeFile(wb, filename);
 }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </body>
 </html>
