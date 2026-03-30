@@ -1426,6 +1426,158 @@ body {
      JAVASCRIPT
 ═══════════════════════════════════ -->
 <script>
+/* ═══════════════════════════════════════════════════════
+   SUPABASE KONFIGURATION
+   → URL und KEY hier eintragen (einmalig)
+═══════════════════════════════════════════════════════ */
+const SUPA_URL = 'https://wyqmmiylrcrwinveiuor.supabase.co';   // z.B. https://xyz.supabase.co
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5cW1taXlscmNyd2ludmVpdW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ5MjMsImV4cCI6MjA5MDQ3MDkyM30.i3T74kOe996Njhm7UfuaJzlbyFeffcCSvD8Jk1mn51s'; // anon public key
+
+const supa = {
+  async _req(method, path, body) {
+    const r = await fetch(SUPA_URL + '/rest/v1/' + path, {
+      method,
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=minimal' : 'return=minimal'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!r.ok) { const t = await r.text(); throw new Error(r.status + ': ' + t); }
+    return r.status === 204 ? null : r.json();
+  },
+  get:    (path)         => supa._req('GET',    path),
+  post:   (path, body)   => supa._req('POST',   path, body),
+  patch:  (path, body)   => supa._req('PATCH',  path, body),
+  delete: (path)         => supa._req('DELETE', path),
+};
+
+/* ─── 5S Audit DB ─── */
+async function loadDBFromServer() {
+  try {
+    // Audits laden
+    const audits = await supa.get('audits?order=created_at.asc');
+    // Settings laden
+    const settings = await supa.get('settings?select=key,value');
+    const settingsMap = {};
+    (settings||[]).forEach(s => settingsMap[s.key] = s.value);
+    db = {
+      questions:    settingsMap.questions    || defaultDB().questions,
+      locations:    settingsMap.locations    || defaultDB().locations,
+      auditors:     settingsMap.auditors     || defaultDB().auditors,
+      distribution: settingsMap.distribution || [],
+      audits:       (audits||[]).map(a => ({
+        id: a.id, auditor: a.auditor, date: a.date,
+        location: a.location, dept: a.dept||'',
+        participants: a.participants||[],
+        answers: a.answers||{}, actions: a.actions||[],
+        score: a.score||0, status: a.status||'complete',
+        completedAt: a.completed_at,
+      })),
+    };
+    console.log('✅ DB von Supabase geladen:', db.audits.length, 'Audits');
+  } catch(e) {
+    console.warn('⚠️ Supabase nicht erreichbar, nutze localStorage:', e.message);
+    db = loadDB(); // Fallback
+  }
+}
+
+async function saveAuditToServer(audit) {
+  try {
+    await supa.post('audits', {
+      id: audit.id, auditor: audit.auditor, date: audit.date,
+      location: audit.location, dept: audit.dept||'',
+      participants: audit.participants||[],
+      answers: audit.answers||{}, actions: audit.actions||[],
+      score: audit.score||0, status: audit.status||'complete',
+      completed_at: audit.completedAt ? new Date(audit.completedAt).toISOString() : null,
+    });
+    console.log('✅ Audit gespeichert in Supabase:', audit.id);
+  } catch(e) {
+    console.error('❌ Supabase Fehler:', e.message);
+    showToast('⚠️ Verbindungsfehler — lokal gespeichert');
+  }
+}
+
+async function deleteAuditFromServer(id) {
+  try {
+    await supa.delete('audits?id=eq.' + id);
+  } catch(e) {
+    console.error('❌ Supabase Löschen fehlgeschlagen:', e.message);
+  }
+}
+
+async function saveSettingToServer(key, value) {
+  try {
+    await supa.post('settings', { key, value });
+  } catch(e) {
+    console.error('❌ Supabase Settings Fehler:', e.message);
+  }
+}
+
+/* ─── TSA Studies ─── */
+async function loadTSAFromServer() {
+  try {
+    const studies = await supa.get('tsa_studies?order=created_at.asc');
+    tsa_studies = (studies||[]).map(s => ({
+      id: s.id, name: s.name, author: s.author||'',
+      date: s.date, items: s.items||[],
+    }));
+    console.log('✅ TSA Studien geladen:', tsa_studies.length);
+  } catch(e) {
+    console.warn('⚠️ TSA Fallback auf localStorage');
+    tsa_studies = JSON.parse(localStorage.getItem('lc_studies') || '[]');
+  }
+}
+
+async function saveTSAToServer(study) {
+  try {
+    await supa.post('tsa_studies', {
+      id: study.id, name: study.name, author: study.author||'',
+      date: study.date, items: study.items||[],
+    });
+  } catch(e) {
+    console.error('❌ TSA Supabase Fehler:', e.message);
+    localStorage.setItem('lc_studies', JSON.stringify(tsa_studies));
+  }
+}
+
+async function deleteTSAFromServer(id) {
+  try {
+    await supa.delete('tsa_studies?id=eq.' + id);
+  } catch(e) {
+    localStorage.setItem('lc_studies', JSON.stringify(tsa_studies));
+  }
+}
+
+/* ─── Initialisierung ─── */
+async function initApp() {
+  showLoadingOverlay(true);
+  await loadDBFromServer();
+  await loadTSAFromServer();
+  showLoadingOverlay(false);
+  renderLanding();
+  updateLandingBadges();
+}
+
+function showLoadingOverlay(show) {
+  let ov = document.getElementById('lp-loading');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'lp-loading';
+    ov.innerHTML = '<div style="text-align:center"><div style="font-size:22px;font-weight:700;margin-bottom:8px">Lean<span style=\'color:#2563eb\'>Plus</span></div><div style="font-size:13px;color:#6b7280;margin-bottom:20px">Verbindung zu Supabase…</div><div style="width:36px;height:36px;border:3px solid #e5e7eb;border-top-color:#111;border-radius:50%;animation:lp-spin 0.8s linear infinite;margin:0 auto"></div></div>';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9998;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';
+    document.body.appendChild(ov);
+    const style = document.createElement('style');
+    style.textContent = '@keyframes lp-spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+  }
+  ov.style.display = show ? 'flex' : 'none';
+}
+
+
 /* ─── PANE SWITCHER ─── */
 function showPane(pane) {
   document.querySelectorAll('.lean-pane').forEach(p => p.classList.remove('active'));
@@ -1439,10 +1591,8 @@ function showPane(pane) {
 
 /* ─── LANDING ─── */
 function renderLanding() {
-  const studies = JSON.parse(localStorage.getItem('lc_studies') || '[]');
-  const auditsRaw = localStorage.getItem('leanplus_5s_v1');
-  const auditDB = auditsRaw ? JSON.parse(auditsRaw) : null;
-  const audits = auditDB?.audits || [];
+  const studies = tsa_studies || [];
+  const audits = db?.audits || [];
   const openActions = audits.reduce((s,a)=>s+(a.actions||[]).filter(x=>!x.done).length, 0);
 
   document.getElementById('ls-studies').textContent = studies.length;
@@ -1488,9 +1638,8 @@ function renderLanding() {
 }
 
 function updateLandingBadges() {
-  const studies = JSON.parse(localStorage.getItem('lc_studies') || '[]');
-  const auditDB = JSON.parse(localStorage.getItem('leanplus_5s_v1') || 'null');
-  const audits  = auditDB?.audits || [];
+  const studies = tsa_studies || [];
+  const audits  = db?.audits || [];
   document.getElementById('nav-tsa-badge').textContent = studies.length;
   document.getElementById('nav-5s-badge').textContent  = audits.length;
 }
@@ -1876,6 +2025,7 @@ function saveAndHome() {
   const idx = tsa_studies.findIndex(s => s.id === tsa_cur.id);
   if (idx >= 0) tsa_studies[idx] = { ...tsa_cur }; else tsa_studies.push({ ...tsa_cur });
   localStorage.setItem('lc_studies', JSON.stringify(tsa_studies));
+  saveTSAToServer({ ...tsa_cur });
   renderStudyList();
   tsaGo('tsa_s-home');
 }
@@ -1901,6 +2051,7 @@ function deleteStudy(id) {
   if (!confirm('Studie wirklich löschen? Dies kann nicht rückgängig gemacht werden.')) return;
   tsa_studies = tsa_studies.filter(s => s.id !== id);
   localStorage.setItem('lc_studies', JSON.stringify(tsa_studies));
+  deleteTSAFromServer(id);
   renderStudyList();
 }
 
@@ -1940,7 +2091,9 @@ function loadDB() {
   try { const r = localStorage.getItem(DB_KEY); if (r) return JSON.parse(r); } catch(e) {}
   return defaultDB();
 }
-function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function saveDB() {
+  localStorage.setItem(DB_KEY, JSON.stringify(db)); // Fallback lokal
+}
 
 function defaultDB() {
   return {
@@ -2417,9 +2570,9 @@ function deleteAudit(id) {
   const label = auditLocKey(a) + ' (' + a.date + ')';
   if (!confirm(`Audit "${label}" wirklich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.`)) return;
   db.audits = db.audits.filter(x => x.id !== id);
-  // Reset cur if it was the deleted audit
   if (cur && cur.id === id) cur = null;
   saveDB();
+  deleteAuditFromServer(id);
   updateS5Badge();
   renderHome();
   showToast('Audit gelöscht');
@@ -2429,9 +2582,11 @@ function deleteDemoAudits() {
   const count = db.audits.filter(a => a.id.startsWith('demo')).length;
   if (!count) { showToast('Keine Demo-Audits vorhanden'); return; }
   if (!confirm(`Alle ${count} Demo-Audit${count>1?'s':''} löschen?\nEigene Audits bleiben erhalten.`)) return;
+  const demoIds = db.audits.filter(a=>a.id.startsWith('demo')).map(a=>a.id);
   db.audits = db.audits.filter(a => !a.id.startsWith('demo'));
   if (cur && cur.id.startsWith('demo')) cur = null;
   saveDB();
+  demoIds.forEach(id => deleteAuditFromServer(id));
   updateS5Badge();
   renderHome();
   showToast(count + ' Demo-Audit' + (count>1?'s':'') + ' gelöscht');
@@ -3490,9 +3645,12 @@ function saveAudit() {
   s5ShowSection('result');
   const idx = db.audits.findIndex(a=>a.id===cur.id);
   if (idx>=0) db.audits[idx] = {...cur}; else db.audits.push({...cur});
-  saveDB();
-  showToast('Audit gespeichert!');
-  renderHome();
+  saveDB(); // lokal
+  saveAuditToServer(cur).then(() => {
+    updateS5Badge();
+    showToast('Audit gespeichert ✅');
+    renderHome();
+  });
 }
 
 function confirmBack() {
@@ -3774,7 +3932,7 @@ function showToast(msg) {
    INIT
 ═══════════════════════════════════════════ */
 /* ─── INIT ─── */
-renderLanding();
+initApp();
 </script>
 <!-- ═══════════════════════════════════
      PASSWORTSCHUTZ
