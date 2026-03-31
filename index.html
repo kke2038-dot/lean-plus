@@ -807,7 +807,41 @@ body {
   .s5-section-header { margin-bottom: 14px; }
 }
 
+/* ── TPM Lightbox ── */
+.tpm-lightbox {
+  display:none; position:fixed; inset:0; z-index:9990;
+  background:rgba(0,0,0,.85); align-items:center; justify-content:center;
+}
+.tpm-lightbox.open { display:flex; }
+.tpm-machine-card {
+  background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+  overflow:hidden; cursor:pointer; transition:all .15s;
+}
+.tpm-machine-card:hover { border-color:#9ca3af; box-shadow:0 4px 16px rgba(0,0,0,.08); transform:translateY(-1px); }
+.tpm-machine-img-wrap { width:100%; height:120px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; font-size:40px; overflow:hidden; }
+.tpm-machine-img-wrap img { width:100%; height:100%; object-fit:cover; }
+.tpm-machine-body { padding:12px; }
+.tpm-machine-name { font-size:16px; font-weight:700; margin-bottom:2px; }
+.tpm-machine-meta { font-size:12px; color:#6b7280; }
+.tpm-machine-stats { display:flex; gap:8px; margin-top:8px; }
+.tpm-machine-stat { flex:1; background:#f9fafb; border-radius:6px; padding:6px 8px; text-align:center; }
+.tpm-machine-stat-val { font-size:16px; font-weight:700; }
+.tpm-machine-stat-lbl { font-size:9px; color:#9ca3af; text-transform:uppercase; letter-spacing:.04em; }
+.tpm-cat-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:5px; color:#fff; }
+.tpm-cat-Reinigung  { background:#3b82f6; }
+.tpm-cat-Wartung    { background:#f97316; }
+.tpm-cat-Hygiene    { background:#8b5cf6; }
+.tpm-cat-Qualität   { background:#059669; }
+.tpm-cat-Sicherheit { background:#dc2626; }
+.tpm-task-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px; margin-bottom:10px; }
+.tpm-task-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:8px; }
+.tpm-task-img { width:70px; height:70px; object-fit:cover; border-radius:8px; flex-shrink:0; cursor:pointer; border:1px solid #e5e7eb; }
+.tpm-task-img-ph { width:70px; height:70px; background:#f3f4f6; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+.tpm-tool-chip { display:flex; align-items:center; gap:5px; background:#f3f4f6; border-radius:6px; padding:3px 8px; font-size:11px; }
+.tpm-tool-chip img { width:20px; height:20px; object-fit:cover; border-radius:3px; }
+
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -828,7 +862,17 @@ body {
       ✅ 5S Audit
       <span class="tab-badge" id="nav-5s-badge">0</span>
     </button>
+    <button class="lean-nav-tab" id="navtab-tpm" onclick="showPane('tpm')">
+      🔧 Reinigung & Wartung
+      <span class="tab-badge" id="nav-tpm-badge">0</span>
+    </button>
   </div>
+  <button onclick="supabaseSetupOpen()" title="Supabase Einstellungen"
+    style="background:none;border:1px solid #e5e7eb;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;color:#9ca3af;flex-shrink:0;margin-left:8px;transition:all .15s"
+    onmouseover="this.style.borderColor='#6b7280';this.style.color='#374151'"
+    onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#9ca3af'">
+    🗄️
+  </button>
 </nav>
 
 <!-- ═══════════════════════════════════
@@ -867,6 +911,15 @@ body {
         <div class="landing-card-desc">Arbeitsbereiche systematisch bewerten, Maßnahmen erfassen und Standorte vergleichen.</div>
         <div class="landing-card-features">
           <span>Sterne-Bewertung</span><span>Fotos</span><span>PDF-Bericht</span><span>Vergleich</span>
+        </div>
+      </div>
+
+      <div class="landing-card" onclick="showPane('tpm')">
+        <div class="landing-card-icon" style="background:#fef3c7">🔧</div>
+        <div class="landing-card-title">Reinigung & Wartung</div>
+        <div class="landing-card-desc">Reinigungs- und Wartungspläne verwalten, Aushänge drucken und Erledigungen protokollieren.</div>
+        <div class="landing-card-features">
+          <span>Maschinenplan</span><span>Hilfsmittel</span><span>Aushang PDF</span><span>Abreißkalender</span>
         </div>
       </div>
 
@@ -997,7 +1050,8 @@ body {
         <div class="rev-meta" id="revMeta">–</div>
       </div>
       <div class="rev-actions">
-        <button class="btn-sm" onclick="exportCSV()">Excel / CSV</button>
+        <button class="btn-sm" onclick="tsaExportCSV()">Excel / CSV</button>
+        <button class="btn-sm" onclick="exportBilderPDF()">Bilder</button>
         <button class="btn-sm" onclick="switchSubTab('wf')">Wasserfall</button>
         <button class="btn-sm green" onclick="saveAndHome()">Speichern</button>
       </div>
@@ -1050,18 +1104,30 @@ body {
     <!-- Wasserfall panel -->
     <div class="sub-panel" id="panel-wf">
       <div class="kpi-row" id="wfKpiRow"></div>
-      <div class="wf-legend">
-        <span class="wf-leg"><span class="wf-leg-sq" style="background:#9ca3af"></span>IST-Zeit</span>
-        <span class="wf-leg"><span class="wf-leg-sq" style="background:#059669"></span>SOLL-Zeit</span>
-        <span class="wf-leg"><span class="wf-leg-sq" style="background:#fca5a5"></span>Einsparung</span>
+
+      <!-- SMED Legende -->
+      <div class="wf-legend" style="flex-wrap:wrap;gap:8px">
+        <span class="wf-leg"><span class="wf-leg-sq" style="background:#3b82f6"></span>IST</span>
+        <span class="wf-leg"><span class="wf-leg-sq" style="background:#ef4444"></span>E – Eliminieren</span>
+        <span class="wf-leg"><span class="wf-leg-sq" style="background:#f97316"></span>K – Kombinieren</span>
+        <span class="wf-leg"><span class="wf-leg-sq" style="background:#eab308"></span>U – Umstellen</span>
+        <span class="wf-leg"><span class="wf-leg-sq" style="background:#8b5cf6"></span>V – Vereinfachen</span>
+        <span class="wf-leg"><span class="wf-leg-sq" style="background:#f59e0b"></span>Int → Ext</span>
+        <span class="wf-leg"><span class="wf-leg-sq" style="background:#10b981"></span>Ext (extern)</span>
+        <span class="wf-leg"><span class="wf-leg-sq" style="background:#059669"></span>SOLL</span>
       </div>
-      <div class="wf-chart-wrap"><canvas id="wfChart"></canvas></div>
-      <div class="tbl-wrap">
+
+      <div class="wf-chart-wrap" style="height:340px"><canvas id="wfChart"></canvas></div>
+
+      <!-- EKUV Aufschlüsselung -->
+      <div id="wfEkuvBreakdown" style="margin-top:16px"></div>
+
+      <div class="tbl-wrap" style="margin-top:16px">
         <table>
           <thead>
             <tr>
               <th>Nr</th><th>Arbeitsschritt</th><th>IST</th><th>SOLL</th>
-              <th>Einsparung</th><th>Anteil IST</th>
+              <th>Einsparung</th><th>EKUV</th><th>Anteil IST</th>
             </tr>
           </thead>
           <tbody id="wfBody"></tbody>
@@ -1423,6 +1489,249 @@ body {
 </div><!-- /pane-5s -->
 
 <!-- ═══════════════════════════════════
+     TPM PANE — Reinigung & Wartung
+═══════════════════════════════════ -->
+<div class="lean-pane tpm-pane" id="pane-tpm">
+
+<div class="tpm-lightbox" id="tpm-lightbox" onclick="tpmCloseLightbox()">
+  <button style="position:absolute;top:16px;right:16px;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:20px;cursor:pointer;border-radius:50%;width:36px;height:36px" onclick="tpmCloseLightbox()">✕</button>
+  <img id="tpm-lightbox-img" src="" style="max-width:90vw;max-height:90vh;border-radius:8px">
+</div>
+<div id="tpm-toast" style="position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none"></div>
+
+<div class="s5-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="s5-sidebar">
+    <div class="s5-sidebar-header">
+      <div class="s5-sidebar-title">Reinigung & Wartung</div>
+    </div>
+    <nav class="s5-sidenav">
+      <button class="s5-navitem active" id="tpm-snav-overview" onclick="tpmShowSection('overview')">
+        <span class="s5-navitem-icon">📋</span>
+        <span class="s5-navitem-label">Übersicht</span>
+        <span class="s5-navitem-badge" id="tpm-badge-machines"></span>
+      </button>
+      <button class="s5-navitem" id="tpm-snav-machine" onclick="tpmShowSection('machine')" style="display:none">
+        <span class="s5-navitem-icon">🏭</span>
+        <span class="s5-navitem-label" id="tpm-snav-machine-label">Maschine</span>
+      </button>
+      <div class="s5-navdivider"></div>
+      <button class="s5-navitem" id="tpm-snav-machines-admin" onclick="tpmShowSection('machines-admin')">
+        <span class="s5-navitem-icon">⚙️</span>
+        <span class="s5-navitem-label">Maschinen</span>
+      </button>
+      <button class="s5-navitem" id="tpm-snav-tools-admin" onclick="tpmShowSection('tools-admin')">
+        <span class="s5-navitem-icon">🛠️</span>
+        <span class="s5-navitem-label">Hilfsmittel</span>
+      </button>
+    </nav>
+  </aside>
+
+  <!-- MOBILE NAV -->
+  <div class="s5-mobile-nav">
+    <button class="s5-mobile-navitem active" id="tpm-mnav-overview" onclick="tpmShowSection('overview')">📋<span>Pläne</span></button>
+    <button class="s5-mobile-navitem" id="tpm-mnav-machines-admin" onclick="tpmShowSection('machines-admin')">🏭<span>Maschinen</span></button>
+    <button class="s5-mobile-navitem" id="tpm-mnav-tools-admin" onclick="tpmShowSection('tools-admin')">🛠️<span>Hilfsmittel</span></button>
+  </div>
+
+  <main class="s5-content">
+
+    <!-- ══ ÜBERSICHT ══ -->
+    <div class="s5-section active" id="tpm-sec-overview">
+      <div class="s5-section-header">
+        <div>
+          <div class="s5-section-title">Reinigungspläne</div>
+          <div class="s5-section-sub">Alle Maschinen und Bereiche</div>
+        </div>
+      </div>
+      <!-- Filter -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <select class="field-input" id="tpm-filter-location" onchange="tpmRenderOverview()" style="font-size:12px;width:auto;padding:6px 28px 6px 10px">
+          <option value="all">Alle Standorte</option>
+        </select>
+        <select class="field-input" id="tpm-filter-area" onchange="tpmRenderOverview()" style="font-size:12px;width:auto;padding:6px 28px 6px 10px">
+          <option value="all">Alle Bereiche</option>
+        </select>
+      </div>
+      <div id="tpm-overview-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px"></div>
+    </div>
+
+    <!-- ══ MASCHINEN-DETAIL ══ -->
+    <div class="s5-section" id="tpm-sec-machine">
+      <div class="s5-section-header">
+        <div>
+          <div class="s5-section-title" id="tpm-machine-title">Maschine</div>
+          <div class="s5-section-sub" id="tpm-machine-sub"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-sm blue" onclick="tpmGenerateAushang()">📄 Aushang PDF</button>
+          <button class="btn-sm" onclick="tpmGenerateKalender()">📅 Kalender PDF</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="sub-tabs" style="margin-bottom:16px">
+        <button class="sub-tab active" id="tpm-tab-tasks" onclick="tpmSwitchTab('tasks')">Aufgaben</button>
+        <button class="sub-tab" id="tpm-tab-add-task" onclick="tpmSwitchTab('add-task')">+ Neue Aufgabe</button>
+        <button class="sub-tab" id="tpm-tab-log" onclick="tpmSwitchTab('log')">Protokoll</button>
+      </div>
+
+      <!-- Aufgaben Panel -->
+      <div class="sub-panel active" id="tpm-panel-tasks">
+        <div id="tpm-tasks-list"></div>
+      </div>
+
+      <!-- Neue Aufgabe Panel -->
+      <div class="sub-panel" id="tpm-panel-add-task">
+        <div class="card">
+          <div class="card-title">Neue Aufgabe</div>
+          <div class="field-wrap">
+            <label class="field-label">Kategorie</label>
+            <select class="field-input" id="tpm-task-category">
+              <option value="Reinigung">🧹 Reinigung</option>
+              <option value="Wartung">🔧 Wartung</option>
+              <option value="Hygiene">🧼 Hygiene</option>
+              <option value="Qualität">✅ Qualität</option>
+              <option value="Sicherheit">⚠️ Sicherheit</option>
+            </select>
+          </div>
+          <div class="field-wrap">
+            <label class="field-label">Tätigkeit <span class="req">*</span></label>
+            <input class="field-input" id="tpm-task-title" placeholder="z.B. Umfeld reinigen">
+          </div>
+          <div class="field-wrap">
+            <label class="field-label">Beschreibung / Sollzustand</label>
+            <textarea class="field-input" id="tpm-task-desc" rows="3" placeholder="z.B. Umfeld ist der Bereich um die Maschine bis zur Nachbarmaschine. Kehren, Mülleimer entleeren…" style="resize:vertical"></textarea>
+          </div>
+          <div class="field-wrap">
+            <label class="field-label">Intervall</label>
+            <select class="field-input" id="tpm-task-interval">
+              <option value="taeglich">Täglich</option>
+              <option value="woechentlich">Wöchentlich</option>
+              <option value="monatlich">Monatlich</option>
+              <option value="jaehrlich">Jährlich</option>
+            </select>
+          </div>
+          <div class="field-wrap">
+            <label class="field-label">Schichten</label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="tpm-shift-frueh" value="frueh"> Früh</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="tpm-shift-normal" value="normal"> Normal</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="tpm-shift-spaet" value="spaet"> Spät</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="tpm-shift-nacht" value="nacht"> Nacht</label>
+            </div>
+          </div>
+          <div class="field-wrap">
+            <label class="field-label">Hilfsmittel</label>
+            <div id="tpm-task-tools-select" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+          </div>
+          <div class="field-wrap">
+            <label class="field-label">Foto des Objekts / Bereichs</label>
+            <input type="file" id="tpm-task-img-input" accept="image/*" style="display:none" onchange="tpmTaskImgSelected(event)">
+            <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+              <button class="btn-sm" onclick="document.getElementById('tpm-task-img-input').click()">📷 Foto wählen</button>
+              <span id="tpm-task-img-preview-wrap" style="display:none;position:relative">
+                <img id="tpm-task-img-preview" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
+                <button onclick="tpmTaskImgClear()" style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+              </span>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="tpmSaveTask()">Aufgabe speichern</button>
+        </div>
+      </div>
+
+      <!-- Protokoll Panel -->
+      <div class="sub-panel" id="tpm-panel-log">
+        <div id="tpm-log-content"></div>
+      </div>
+    </div>
+
+    <!-- ══ MASCHINEN STAMMDATEN ══ -->
+    <div class="s5-section" id="tpm-sec-machines-admin">
+      <div class="s5-section-header">
+        <div class="s5-section-title">Maschinen verwalten</div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">Neue Maschine</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field-wrap" style="margin-bottom:0">
+            <label class="field-label">Name / Nr. <span class="req">*</span></label>
+            <input class="field-input" id="tpm-m-name" placeholder="z.B. BU10">
+          </div>
+          <div class="field-wrap" style="margin-bottom:0">
+            <label class="field-label">Hersteller</label>
+            <input class="field-input" id="tpm-m-hersteller" placeholder="z.B. Goebel">
+          </div>
+          <div class="field-wrap" style="margin-bottom:0">
+            <label class="field-label">Standort</label>
+            <input class="field-input" id="tpm-m-location" placeholder="z.B. Werk Stuttgart">
+          </div>
+          <div class="field-wrap" style="margin-bottom:0">
+            <label class="field-label">Bereich</label>
+            <input class="field-input" id="tpm-m-area" placeholder="z.B. Produktion">
+          </div>
+          <div class="field-wrap" style="margin-bottom:0">
+            <label class="field-label">Ort / Kostenstelle</label>
+            <input class="field-input" id="tpm-m-ort" placeholder="z.B. PM10">
+          </div>
+          <div class="field-wrap" style="margin-bottom:0">
+            <label class="field-label">Technologie</label>
+            <input class="field-input" id="tpm-m-technologie" placeholder="z.B. Breitenumroller">
+          </div>
+        </div>
+        <div class="field-wrap" style="margin-top:10px">
+          <label class="field-label">Foto der Maschine</label>
+          <input type="file" id="tpm-m-img-input" accept="image/*" style="display:none" onchange="tpmMachineImgSelected(event)">
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+            <button class="btn-sm" onclick="document.getElementById('tpm-m-img-input').click()">📷 Foto wählen</button>
+            <span id="tpm-m-img-preview-wrap" style="display:none;position:relative">
+              <img id="tpm-m-img-preview" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
+              <button onclick="tpmMachineImgClear()" style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>
+            </span>
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:12px" onclick="tpmSaveMachine()">Maschine speichern</button>
+      </div>
+      <div id="tpm-machines-list"></div>
+    </div>
+
+    <!-- ══ HILFSMITTEL STAMMDATEN ══ -->
+    <div class="s5-section" id="tpm-sec-tools-admin">
+      <div class="s5-section-header">
+        <div class="s5-section-title">Hilfsmittel verwalten</div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">Neues Hilfsmittel</div>
+        <div class="field-wrap">
+          <label class="field-label">Name <span class="req">*</span></label>
+          <input class="field-input" id="tpm-t-name" placeholder="z.B. Schaufel und Besen">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label">Beschreibung</label>
+          <input class="field-input" id="tpm-t-desc" placeholder="z.B. Für Bodenreinigung">
+        </div>
+        <div class="field-wrap">
+          <label class="field-label">Foto</label>
+          <input type="file" id="tpm-t-img-input" accept="image/*" style="display:none" onchange="tpmToolImgSelected(event)">
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+            <button class="btn-sm" onclick="document.getElementById('tpm-t-img-input').click()">📷 Foto wählen</button>
+            <span id="tpm-t-img-preview-wrap" style="display:none;position:relative">
+              <img id="tpm-t-img-preview" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
+              <button onclick="tpmToolImgClear()" style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>
+            </span>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="tpmSaveTool()">Hilfsmittel speichern</button>
+      </div>
+      <div id="tpm-tools-list"></div>
+    </div>
+
+  </main>
+</div><!-- /s5-layout -->
+</div><!-- /pane-tpm -->
+
+<!-- ═══════════════════════════════════
      JAVASCRIPT
 ═══════════════════════════════════ -->
 <script>
@@ -1430,16 +1739,25 @@ body {
    SUPABASE KONFIGURATION
    → URL und KEY hier eintragen (einmalig)
 ═══════════════════════════════════════════════════════ */
-const SUPA_URL = 'https://wyqmmiylrcrwinveiuor.supabase.co';   // z.B. https://xyz.supabase.co
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5cW1taXlscmNyd2ludmVpdW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ5MjMsImV4cCI6MjA5MDQ3MDkyM30.i3T74kOe996Njhm7UfuaJzlbyFeffcCSvD8Jk1mn51s'; // anon public key
+// ── Supabase Konfiguration — wird beim ersten Start einmalig eingegeben ──
+const SUPA_CFG_KEY = 'lp_supa_config';
+let _supaCfg = null;
+try { _supaCfg = JSON.parse(localStorage.getItem(SUPA_CFG_KEY) || 'null'); } catch(e) {}
+
+const SUPA_URL = _supaCfg?.url || '';
+const SUPA_KEY = _supaCfg?.key || '';
 
 const supa = {
+  _url() { try { return JSON.parse(localStorage.getItem(SUPA_CFG_KEY)||'{}').url || ''; } catch(e){ return ''; } },
+  _key() { try { return JSON.parse(localStorage.getItem(SUPA_CFG_KEY)||'{}').key || ''; } catch(e){ return ''; } },
   async _req(method, path, body) {
-    const r = await fetch(SUPA_URL + '/rest/v1/' + path, {
+    const url = this._url(), key = this._key();
+    if (!url || !key) throw new Error('Supabase nicht konfiguriert');
+    const r = await fetch(url + '/rest/v1/' + path, {
       method,
       headers: {
-        'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + SUPA_KEY,
+        'apikey': key,
+        'Authorization': 'Bearer ' + key,
         'Content-Type': 'application/json',
         'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=minimal' : 'return=minimal'
       },
@@ -1554,12 +1872,147 @@ async function deleteTSAFromServer(id) {
 
 /* ─── Initialisierung ─── */
 async function initApp() {
+  // Prüfe ob Supabase konfiguriert ist
+  if (!SUPA_URL || !SUPA_KEY) {
+    showLoadingOverlay(false);
+    showSupabaseSetup();
+    return;
+  }
+
   showLoadingOverlay(true);
-  await loadDBFromServer();
-  await loadTSAFromServer();
-  showLoadingOverlay(false);
+
+  try {
+    await loadDBFromServer();
+    await loadTSAFromServer();
+    showLoadingOverlay(false);
+    renderLanding();
+    updateLandingBadges();
+  } catch(e) {
+    showLoadingOverlay(false);
+    console.error('❌ Supabase Verbindungsfehler:', e);
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 20px;font-size:13px;color:#991b1b;z-index:9997;max-width:400px;text-align:center';
+    errDiv.innerHTML = `⚠️ Supabase Verbindung fehlgeschlagen.<br><small>${e.message}</small><br>
+      <button onclick="showSupabaseSetup()" style="margin-top:8px;background:#dc2626;color:#fff;border:none;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:12px">Einstellungen öffnen</button>`;
+    document.body.appendChild(errDiv);
+    setTimeout(() => errDiv.remove(), 12000);
+    db = loadDB();
+    tsa_studies = JSON.parse(localStorage.getItem('lc_studies') || '[]');
+    renderLanding();
+    updateLandingBadges();
+  }
+}
+
+function showSupabaseSetup() {
+  // Entferne altes Setup falls vorhanden
+  const existing = document.getElementById('lp-supa-setup');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'lp-supa-setup';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';
+
+  const current = _supaCfg || {};
+
+  overlay.innerHTML = `
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:36px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,.1)">
+      <div style="font-size:22px;font-weight:700;color:#111;margin-bottom:4px">Lean<span style="color:#2563eb">Plus</span></div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:28px">Supabase Datenbank verbinden</div>
+
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Supabase Project URL</label>
+        <input id="setup-url" type="text"
+          value="${current.url||''}"
+          placeholder="https://xxxxxxxxxxxx.supabase.co"
+          style="width:100%;padding:10px 13px;border:1.5px solid #d1d5db;border-radius:9px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box"
+          onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#d1d5db'">
+      </div>
+
+      <div style="margin-bottom:24px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Anon Public Key</label>
+        <input id="setup-key" type="password"
+          value="${current.key||''}"
+          placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
+          style="width:100%;padding:10px 13px;border:1.5px solid #d1d5db;border-radius:9px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box"
+          onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#d1d5db'">
+        <div style="margin-top:5px;font-size:11px;color:#9ca3af">Supabase → Settings → API → anon public</div>
+      </div>
+
+      <div id="setup-error" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;color:#dc2626;margin-bottom:16px"></div>
+
+      <button onclick="supabaseSetupSave()" id="setup-save-btn"
+        style="width:100%;padding:13px;background:#111;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .15s"
+        onmouseover="this.style.background='#333'" onmouseout="this.style.background='#111'">
+        Verbinden & Speichern
+      </button>
+
+      ${current.url ? `<button onclick="supabaseSetupSkip()" style="width:100%;margin-top:10px;padding:10px;background:none;color:#9ca3af;border:1px solid #e5e7eb;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit">Abbrechen</button>` : ''}
+
+      <div style="margin-top:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:11px;color:#0369a1;line-height:1.5">
+        🔒 Die Zugangsdaten werden nur in deinem Browser gespeichert und nie übertragen.
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('setup-url')?.focus(), 100);
+}
+
+async function supabaseSetupSave() {
+  const url = document.getElementById('setup-url')?.value.trim();
+  const key = document.getElementById('setup-key')?.value.trim();
+  const errEl = document.getElementById('setup-error');
+  const btn   = document.getElementById('setup-save-btn');
+
+  if (!url || !url.startsWith('https://')) {
+    errEl.textContent = 'Bitte eine gültige Supabase URL eingeben (https://…)';
+    errEl.style.display = 'block'; return;
+  }
+  if (!key || key.length < 20) {
+    errEl.textContent = 'Bitte den Anon Public Key eingeben';
+    errEl.style.display = 'block'; return;
+  }
+
+  btn.textContent = 'Verbindung wird geprüft…';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  // Test connection
+  try {
+    const r = await fetch(url + '/rest/v1/audits?limit=1', {
+      headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
+    });
+    if (!r.ok && r.status !== 200 && r.status !== 406) {
+      throw new Error(`HTTP ${r.status} — Bitte URL und Key prüfen`);
+    }
+
+    // Save to localStorage
+    const cfg = { url, key };
+    localStorage.setItem(SUPA_CFG_KEY, JSON.stringify(cfg));
+    _supaCfg = cfg;
+
+    // Update global vars and restart
+    btn.textContent = '✅ Verbunden! App wird geladen…';
+
+    // Reload page to apply new config cleanly
+    setTimeout(() => location.reload(), 800);
+
+  } catch(e) {
+    errEl.textContent = 'Verbindung fehlgeschlagen: ' + e.message;
+    errEl.style.display = 'block';
+    btn.textContent = 'Verbinden & Speichern';
+    btn.disabled = false;
+  }
+}
+
+function supabaseSetupSkip() {
+  const overlay = document.getElementById('lp-supa-setup');
+  if (overlay) overlay.remove();
   renderLanding();
   updateLandingBadges();
+}
+
+function supabaseSetupOpen() {
+  showSupabaseSetup();
 }
 
 function showLoadingOverlay(show) {
@@ -1586,7 +2039,8 @@ function showPane(pane) {
   document.getElementById('navtab-' + pane).classList.add('active');
   updateLandingBadges();
   if (pane === 'landing') renderLanding();
-  if (pane === '5s') { s5ShowSection('audits'); }
+  if (pane === '5s')  { s5ShowSection('audits'); }
+  if (pane === 'tpm') { tpmLoad().then(() => tpmShowSection('overview')); }
 }
 
 /* ─── LANDING ─── */
@@ -1726,6 +2180,138 @@ function renderPhotos() {
       <img src="${i.photo}" onclick="openLightbox('${i.photo}')" title="${i.name}">
       <div class="photo-grid-label">${i.name}</div>
     </div>`).join('')}</div>`;
+}
+
+/* ───────── Bilder-PDF Export ───────── */
+function exportBilderPDF() {
+  if (!tsa_cur || !tsa_cur.items.length) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const W = 210, H = 297, ML = 20, MR = 20, MT = 25;
+  let y = MT;
+  let pageNum = 1;
+
+  function newPage() {
+    doc.addPage();
+    pageNum++;
+    y = MT;
+    drawPageHeader();
+  }
+
+  function chk(need) {
+    if (y + need > H - 18) newPage();
+  }
+
+  function drawPageHeader() {
+    // Thin top line
+    doc.setDrawColor(17,17,17); doc.setLineWidth(0.5);
+    doc.line(ML, 12, W-MR, 12);
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+    doc.text('Prozessbeobachtung - Bilder', ML, 9);
+    doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+    doc.text(tsa_cur.name, W-MR, 9, { align: 'right' });
+  }
+
+  // ── Cover info block ──
+  doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+  doc.text('Prozessbeobachtung - Bilder', ML, y); y += 8;
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81);
+  doc.text('Arbeitsprozess: ' + tsa_cur.name, ML, y); y += 5;
+  doc.text('Datum: ' + tsa_cur.date, ML, y); y += 5;
+  doc.text('Ersteller: ' + (tsa_cur.author || 'Unbekannt'), ML, y); y += 8;
+  doc.setDrawColor(229,231,235); doc.setLineWidth(0.3);
+  doc.line(ML, y, W-MR, y); y += 8;
+
+  // Build cumulative times
+  let cumulativeMs = 0;
+  const items = tsa_cur.items;
+
+  items.forEach((item, idx) => {
+    const istSek = Math.round(item.ms / 1000);
+    const startMs = cumulativeMs;
+    cumulativeMs += item.ms;
+    const endMs = cumulativeMs;
+
+    // Format start/end as MM:SS
+    const fmtTime = ms => {
+      const total = Math.floor(ms / 1000);
+      const m = Math.floor(total / 60), s = total % 60;
+      return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    };
+    const dauer = istSek >= 60
+      ? (Math.floor(istSek/60) + '.' + String(Math.round((istSek%60)/60*100)).padStart(2,'0') + ' min')
+      : (istSek + 's');
+
+    // Active EKUV labels
+    const ekuvActive = Object.entries(item.ekuv||{}).filter(([,v])=>v).map(([k])=>k).join(', ') || '–';
+
+    // Estimate block height needed
+    const hasPhoto = !!item.photo;
+    const blockH = hasPhoto ? 58 : 24;
+    chk(blockH + 6);
+
+    // ── Step header ──
+    doc.setFillColor(249,250,251);
+    doc.roundedRect(ML, y, W-ML-MR, hasPhoto ? blockH : 22, 2, 2, 'F');
+    doc.setDrawColor(229,231,235); doc.setLineWidth(0.3);
+    doc.roundedRect(ML, y, W-ML-MR, hasPhoto ? blockH : 22, 2, 2, 'S');
+
+    // Step number badge
+    doc.setFillColor(17,17,17);
+    doc.roundedRect(ML+2, y+2, 8, 8, 1.5, 1.5, 'F');
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+    doc.text(String(idx+1), ML+6, y+7.2, { align: 'center' });
+
+    // Step title
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+    doc.text(item.name, ML+13, y+7);
+
+    // Meta line
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+    const metaLine = `Start: ${fmtTime(startMs)}  |  Ende: ${fmtTime(endMs)}  |  Dauer: ${dauer}  |  EKUV: ${ekuvActive}`;
+    doc.text(metaLine, ML+13, y+13);
+
+    // Remark if present
+    if (item.remark) {
+      doc.setFontSize(7); doc.setTextColor(107,114,128);
+      const remLines = doc.splitTextToSize('→ ' + item.remark, W-ML-MR-16);
+      doc.text(remLines, ML+13, y+18);
+    }
+
+    if (hasPhoto) {
+      // Photo on the right side of the card
+      try {
+        const imgW = 42, imgH = 36;
+        const imgX = W - MR - imgW - 2;
+        const imgY = y + 4;
+        doc.addImage(item.photo, 'JPEG', imgX, imgY, imgW, imgH, undefined, 'FAST');
+        // Photo border
+        doc.setDrawColor(229,231,235); doc.setLineWidth(0.3);
+        doc.rect(imgX, imgY, imgW, imgH);
+      } catch(e) {
+        doc.setFontSize(7); doc.setTextColor(156,163,175);
+        doc.text('(Foto nicht verfügbar)', W-MR-44, y+22);
+      }
+      y += blockH + 5;
+    } else {
+      // No photo — show "(keine Fotos)"
+      doc.setFontSize(7); doc.setTextColor(156,163,175);
+      doc.text('(keine Fotos)', ML+13, y+19);
+      y += 26;
+    }
+  });
+
+  // Footer on all pages
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
+    doc.text(`Lean Plus · ${tsa_cur.name} · ${tsa_cur.date}`, ML, H - 6);
+    doc.text(`${p} / ${totalPages}`, W - MR, H - 6, { align: 'right' });
+    if (p > 1) drawPageHeader(); // header on every page except p1 (already drawn inline)
+  }
+
+  doc.save(tsa_cur.name.replace(/\s+/g,'_') + '_Bilder.pdf');
 }
 
 /* ───────── Study setup ───────── */
@@ -1890,7 +2476,61 @@ function goReview() {
 
 function toggleEKUV(itemId, key) {
   const item = tsa_cur.items.find(i => i.id === itemId);
-  if (item) { item.ekuv[key] = !item.ekuv[key]; renderReview(); }
+  if (!item) return;
+
+  item.ekuv[key] = !item.ekuv[key];
+
+  const istSek = Math.round(item.ms / 1000);
+  const newAutoSoll = calcAutoSoll(item, istSek);
+
+  // Wenn Soll noch leer oder gleich dem vorherigen Auto-Wert → Auto-Wert übernehmen
+  const currentSoll = parseFloat(item.soll);
+  const hadSollSet  = item.soll !== '' && !isNaN(currentSoll);
+
+  if (!hadSollSet) {
+    // Soll war noch leer — direkt setzen oder leeren lassen
+    item.soll = newAutoSoll !== null ? String(newAutoSoll) : '';
+  } else {
+    // Soll war gesetzt — prüfen ob es einem alten Auto-Wert entsprach
+    // Wenn ja: neuen Auto-Wert übernehmen (inkl. Leeren wenn kein EKUV mehr aktiv)
+    const anyEKUVActive = Object.values(item.ekuv).some(v => v);
+    if (!anyEKUVActive) {
+      // Kein EKUV mehr aktiv → Soll zurücksetzen
+      item.soll = '';
+    } else {
+      // Noch EKUV aktiv → neuen Auto-Wert setzen wenn nicht manuell verändert
+      // Wir setzen Auto-Wert wenn der aktuelle Wert ein typischer Auto-Wert ist
+      const possibleAutos = [0, istSek,
+        Math.round(istSek*0.50), Math.round(istSek*0.30)];
+      const isLikelyAuto = possibleAutos.includes(currentSoll);
+      if (isLikelyAuto) {
+        item.soll = newAutoSoll !== null ? String(newAutoSoll) : '';
+      }
+      // sonst: manuell gesetzt → nicht anfassen
+    }
+  }
+
+  renderReview();
+}
+
+/* Berechnet den automatischen Soll-Wert basierend auf aktiven EKUV-Chips */
+function calcAutoSoll(item, istSek) {
+  const e = item.ekuv;
+  // Priorität: E > V > U > K > Int > Ext
+  if (e.E)   return 0;                          // Eliminieren → komplett wegfallen
+  if (e.V)   return 0;                          // Vermeidbar → eliminieren
+  if (e.U)   return Math.round(istSek * 0.30);  // Umstellen → 70% Einsparung
+  if (e.K)   return Math.round(istSek * 0.50);  // Kombinieren → 50% Einsparung
+  if (e.Int) return Math.round(istSek * 0.50);  // Intern → 50% Einsparung
+  if (e.Ext) return istSek;                     // Extern → kein Einfluss
+  return null; // Kein EKUV gesetzt → nichts vorschlagen
+}
+
+/* Berechnet den Auto-Soll OHNE den gerade getoggelten Key (für Änderungserkennung) */
+function calcAutoSollWithout(item, toggledKey, istSek) {
+  const e = { ...item.ekuv, [toggledKey]: !item.ekuv[toggledKey] }; // vorheriger Zustand
+  const prevItem = { ekuv: e };
+  return calcAutoSoll(prevItem, istSek);
 }
 
 function updateSoll(itemId, val) {
@@ -1923,16 +2563,41 @@ function renderReview() {
     <div class="kpi"><div class="kpi-label">Einsparung</div><div class="kpi-val" style="color:#dc2626">${einspar > 0 ? fmtS(einspar) : '–'}</div></div>
     <div class="kpi"><div class="kpi-label">SOLL Gesamt</div><div class="kpi-val" style="color:#059669">${fmtS(sollTotal)}</div></div>`;
 
-  document.getElementById('revBody').innerHTML = items.map((item, idx) => `
-    <tr>
+  document.getElementById('revBody').innerHTML = items.map((item, idx) => {
+    const istSek = Math.round(item.ms/1000);
+    const autoSoll = calcAutoSoll(item, istSek);
+    const currentSoll = parseFloat(item.soll);
+    const isAuto = autoSoll !== null && !isNaN(currentSoll) && currentSoll === autoSoll;
+    const isManual = item.soll !== '' && !isNaN(currentSoll) && currentSoll !== autoSoll;
+    const einsparSek = isNaN(currentSoll) ? 0 : Math.max(0, istSek - currentSoll);
+    const einsparPct = istSek > 0 && einsparSek > 0 ? Math.round(einsparSek/istSek*100) : 0;
+
+    // Soll-Feld Farbe: grün=auto, blau=manuell korrigiert, grau=leer
+    const sollBorder = isManual ? '#2563eb' : isAuto ? '#059669' : '#d1d5db';
+    const sollTitle  = isManual ? 'Manuell angepasst' : isAuto ? 'Automatisch aus EKUV' : 'Soll-Zeit eingeben';
+
+    return `<tr>
       <td style="color:#9ca3af;font-size:12px">${idx+1}</td>
       <td style="font-weight:500;min-width:140px">${item.name}</td>
       <td style="font-size:12px;white-space:nowrap">${item.ms > 0 ? fmtS(item.ms/1000) : '–'}</td>
       ${EKUV.map(k => `<td style="text-align:center"><button class="ekuv-chip${item.ekuv[k]?' active-'+k:''}" onclick="toggleEKUV(${item.id},'${k}')">${k}</button></td>`).join('')}
-      <td><input class="soll-input" type="number" min="0" value="${item.soll}" placeholder="s" onchange="updateSoll(${item.id},this.value)"></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input class="soll-input" type="number" min="0"
+            value="${item.soll}"
+            placeholder="s"
+            title="${sollTitle}"
+            style="border-color:${sollBorder}"
+            onchange="updateSoll(${item.id},this.value)">
+          ${einsparPct>0 ? `<span style="font-size:10px;color:#059669;white-space:nowrap">−${einsparPct}%</span>` : ''}
+        </div>
+        ${isAuto && autoSoll !== null ? `<div style="font-size:9px;color:#9ca3af;margin-top:1px">Auto</div>` : ''}
+        ${isManual ? `<div style="font-size:9px;color:#2563eb;margin-top:1px">Manuell</div>` : ''}
+      </td>
       <td><input class="rem-input" type="text" value="${item.remark}" placeholder="…" onblur="updateRemark(${item.id},this.value)"></td>
       <td><button class="move-btn" onclick="moveItem(${idx},-1)">↑</button><button class="move-btn" onclick="moveItem(${idx},1)">↓</button></td>
-    </tr>`).join('');
+    </tr>`
+  }).join('');
 
   const eS = items.filter(i => i.ekuv.E).reduce((s,i) => s+i.ms/1000, 0);
   const uS = items.filter(i => i.ekuv.U).reduce((s,i) => s+i.ms/1000, 0);
@@ -1953,58 +2618,167 @@ function renderReview() {
 function renderWaterfall() {
   const items = tsa_cur.items;
   const totalIst = items.reduce((s,i) => s + i.ms/1000, 0);
-  const sollArr = items.map(i => { const v = parseFloat(i.soll); return isNaN(v) ? i.ms/1000 : v; });
+  const sollArr  = items.map(i => { const v = parseFloat(i.soll); return isNaN(v) ? i.ms/1000 : v; });
   const totalSoll = sollArr.reduce((s,v) => s+v, 0);
-  const totalSav = Math.max(0, totalIst - totalSoll);
+  const totalSav  = Math.max(0, totalIst - totalSoll);
+  const pctSav    = totalIst > 0 ? Math.round(totalSav/totalIst*100) : 0;
 
+  // ── EKUV sums (seconds) ──
+  const ekuvS = key => items.filter(i=>i.ekuv[key]).reduce((s,i)=>s+Math.max(0,i.ms/1000 - (parseFloat(i.soll)||i.ms/1000)), 0);
+  const sumE   = items.filter(i=>i.ekuv.E  ).reduce((s,i)=>s+Math.max(0,i.ms/1000-(parseFloat(i.soll)||i.ms/1000)),0);
+  const sumK   = items.filter(i=>i.ekuv.K  ).reduce((s,i)=>s+Math.max(0,i.ms/1000-(parseFloat(i.soll)||i.ms/1000)),0);
+  const sumU   = items.filter(i=>i.ekuv.U  ).reduce((s,i)=>s+Math.max(0,i.ms/1000-(parseFloat(i.soll)||i.ms/1000)),0);
+  const sumV   = items.filter(i=>i.ekuv.V  ).reduce((s,i)=>s+Math.max(0,i.ms/1000-(parseFloat(i.soll)||i.ms/1000)),0);
+  const sumInt = items.filter(i=>i.ekuv.Int).reduce((s,i)=>s+Math.max(0,i.ms/1000-(parseFloat(i.soll)||i.ms/1000)),0);
+  const sumExt = items.filter(i=>i.ekuv.Ext).reduce((s,i)=>s+Math.max(0,i.ms/1000-(parseFloat(i.soll)||i.ms/1000)),0);
+
+  // ── KPI row ──
   document.getElementById('wfKpiRow').innerHTML = `
     <div class="kpi"><div class="kpi-label">IST Gesamt</div><div class="kpi-val">${fmtS(totalIst)}</div></div>
-    <div class="kpi"><div class="kpi-label">Einsparung</div><div class="kpi-val" style="color:#dc2626">${fmtS(totalSav)}</div></div>
-    <div class="kpi"><div class="kpi-label">SOLL Gesamt</div><div class="kpi-val" style="color:#059669">${fmtS(totalSoll)}</div></div>`;
+    <div class="kpi"><div class="kpi-label">Einsparung</div><div class="kpi-val" style="color:#dc2626">${fmtS(totalSav)} <span style="font-size:12px">(${pctSav}%)</span></div></div>
+    <div class="kpi"><div class="kpi-label">SOLL (Neue Dauer)</div><div class="kpi-val" style="color:#059669">${fmtS(totalSoll)}</div></div>`;
 
-  const labels = items.map(i => i.name.length > 14 ? i.name.slice(0,13)+'…' : i.name);
-  const istVals = items.map(i => Math.round(i.ms/1000));
-  const savVals = items.map((i,idx) => Math.max(0, Math.round(i.ms/1000 - sollArr[idx])));
-  const sollVals = sollArr.map(v => Math.round(v));
+  // ── Waterfall chart — IST | E | K | U | V | Int | Ext | SOLL ──
+  // Each bar: [base (transparent), value (colored)]
+  // Floating bar trick: data = [base, base+value]
+  const wfSteps = [
+    { label:'IST',     value: totalIst,            color:'#3b82f6', base:0 },
+    { label:'E',       value: sumE,                color:'#ef4444', base: totalIst - sumE },
+    { label:'K',       value: sumK,                color:'#f97316', base: totalIst - sumE - sumK },
+    { label:'U',       value: sumU,                color:'#eab308', base: totalIst - sumE - sumK - sumU },
+    { label:'V',       value: sumV,                color:'#8b5cf6', base: totalIst - sumE - sumK - sumU - sumV },
+    { label:'Int→Ext', value: sumInt,              color:'#f59e0b', base: totalIst - sumE - sumK - sumU - sumV - sumInt },
+    { label:'Ext',     value: sumExt,              color:'#10b981', base: totalIst - sumE - sumK - sumU - sumV - sumInt - sumExt },
+    { label:'SOLL',    value: totalSoll,            color:'#059669', base:0 },
+  ].filter(s => s.label === 'IST' || s.label === 'SOLL' || s.value > 0);
 
-  if (tsa_wfChartInst) tsa_wfChartInst.destroy();
+  if (tsa_wfChartInst) { tsa_wfChartInst.destroy(); tsa_wfChartInst = null; }
+
   tsa_wfChartInst = new Chart(document.getElementById('wfChart'), {
     type: 'bar',
     data: {
-      labels,
-      datasets: [
-        { label:'IST', data: istVals, backgroundColor: '#9ca3af', borderRadius: 4, barPercentage: 0.6 },
-        { label:'SOLL', data: sollVals, backgroundColor: '#059669', borderRadius: 4, barPercentage: 0.6 },
-        { label:'Einsparung', data: savVals, backgroundColor: '#fca5a5', borderRadius: 4, barPercentage: 0.6 },
-      ]
+      labels: wfSteps.map(s => s.label),
+      datasets: [{
+        data: wfSteps.map(s => s.label === 'IST' || s.label === 'SOLL'
+          ? s.value
+          : [s.base, s.base + s.value]
+        ),
+        backgroundColor: wfSteps.map(s => s.color),
+        borderRadius: 5,
+        barPercentage: 0.65,
+      }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${fmtS(ctx.parsed.y)}` } }
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const step = wfSteps[ctx.dataIndex];
+              const val  = step.value;
+              const pct  = totalIst > 0 ? Math.round(val/totalIst*100) : 0;
+              if (step.label === 'IST')  return `IST: ${fmtS(val)}`;
+              if (step.label === 'SOLL') return `SOLL: ${fmtS(val)} (−${pctSav}%)`;
+              return `${step.label}: −${fmtS(val)} (${pct}%)`;
+            }
+          }
+        },
+        datalabels: { display: false }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11 }, autoSkip: false, maxRotation: 35, color: '#6b7280' } },
-        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#6b7280', callback: v => fmtS(v) }, beginAtZero: true }
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 12, weight: '600' }, color: '#374151' }
+        },
+        y: {
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          ticks: { font: { size: 11 }, color: '#9ca3af', callback: v => fmtS(v) },
+          beginAtZero: true
+        }
       }
-    }
+    },
+    plugins: [{
+      // Draw value labels above/below bars
+      afterDatasetsDraw(chart) {
+        const ctx2 = chart.ctx;
+        chart.data.datasets[0].data.forEach((val, i) => {
+          const step = wfSteps[i];
+          const meta = chart.getDatasetMeta(0).data[i];
+          if (!meta) return;
+          ctx2.save();
+          ctx2.font = 'bold 11px Arial';
+          ctx2.textAlign = 'center';
+          const label = step.label === 'IST' || step.label === 'SOLL'
+            ? fmtS(step.value)
+            : (step.value > 0 ? '−'+fmtS(step.value) : '');
+          if (!label) { ctx2.restore(); return; }
+          ctx2.fillStyle = step.color;
+          const yPos = step.label === 'IST' || step.label === 'SOLL'
+            ? meta.y - 6
+            : meta.y - 6;
+          ctx2.fillText(label, meta.x, yPos);
+          ctx2.restore();
+        });
+      }
+    }]
   });
 
+  // ── EKUV Aufschlüsselung ──
+  const breakdown = [
+    { key:'E', label:'Eliminieren',   val:sumE,   color:'#ef4444' },
+    { key:'K', label:'Kombinieren',   val:sumK,   color:'#f97316' },
+    { key:'U', label:'Umstellen',     val:sumU,   color:'#eab308' },
+    { key:'V', label:'Vereinfachen',  val:sumV,   color:'#8b5cf6' },
+    { key:'Int', label:'Int → Ext',   val:sumInt, color:'#f59e0b' },
+    { key:'Ext', label:'Extern',      val:sumExt, color:'#10b981' },
+  ].filter(b => b.val > 0);
+
+  const bdEl = document.getElementById('wfEkuvBreakdown');
+  if (bdEl) {
+    if (breakdown.length) {
+      bdEl.innerHTML = `
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px">
+          <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:12px">EKUV Aufschlüsselung</div>
+          ${breakdown.map(b => {
+            const pct = totalIst>0 ? Math.round(b.val/totalIst*100) : 0;
+            const barW = totalSav>0 ? Math.round(b.val/totalSav*100) : 0;
+            return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <span style="font-size:11px;font-weight:700;background:${b.color};color:#fff;padding:2px 7px;border-radius:5px;width:28px;text-align:center;flex-shrink:0">${b.key}</span>
+              <span style="font-size:12px;color:#374151;flex:1">${b.label}</span>
+              <div style="flex:2;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+                <div style="height:100%;width:${barW}%;background:${b.color};border-radius:4px;transition:width .3s"></div>
+              </div>
+              <span style="font-size:12px;font-weight:600;color:${b.color};min-width:40px;text-align:right">${fmtS(b.val)}</span>
+            </div>`;
+          }).join('')}
+        </div>`;
+    } else {
+      bdEl.innerHTML = '';
+    }
+  }
+
+  // ── Detail table ──
   document.getElementById('wfBody').innerHTML = items.map((item,idx) => {
     const sav = Math.max(0, Math.round(item.ms/1000 - sollArr[idx]));
     const pct = totalIst > 0 ? Math.round(item.ms/1000/totalIst*100) : 0;
+    const activeEKUV = Object.entries(item.ekuv||{}).filter(([,v])=>v).map(([k])=>k);
+    const ekuvColors = {E:'#ef4444',K:'#f97316',U:'#eab308',V:'#8b5cf6',Int:'#f59e0b',Ext:'#10b981'};
     return `<tr>
       <td style="color:#9ca3af">${idx+1}</td>
       <td style="font-weight:500">${item.name}</td>
       <td>${fmtS(Math.round(item.ms/1000))}</td>
       <td style="color:#059669">${sollArr[idx]>0 ? fmtS(Math.round(sollArr[idx])) : '–'}</td>
-      <td style="color:${sav>0?'#dc2626':'#9ca3af'}">${sav>0?'–'+fmtS(sav):'–'}</td>
+      <td style="color:${sav>0?'#dc2626':'#9ca3af'}">${sav>0?'−'+fmtS(sav):'–'}</td>
+      <td style="display:flex;gap:3px;flex-wrap:wrap">
+        ${activeEKUV.map(k=>`<span style="font-size:10px;font-weight:700;background:${ekuvColors[k]};color:#fff;padding:1px 5px;border-radius:4px">${k}</span>`).join('')||'–'}
+      </td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:11px;color:#6b7280;min-width:28px">${pct}%</span>
           <div style="height:6px;background:#e5e7eb;border-radius:3px;width:80px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:#9ca3af;border-radius:3px"></div>
+            <div style="height:100%;width:${pct}%;background:#3b82f6;border-radius:3px"></div>
           </div>
         </div>
       </td>
@@ -2015,8 +2789,8 @@ function renderWaterfall() {
     <td></td><td style="font-weight:700">Summe</td>
     <td style="font-weight:700">${fmtS(Math.round(totalIst))}</td>
     <td style="color:#059669;font-weight:700">${fmtS(Math.round(totalSoll))}</td>
-    <td style="color:#dc2626;font-weight:700">${totalSav>0?'–'+fmtS(Math.round(totalSav)):'–'}</td>
-    <td>100%</td>
+    <td style="color:#dc2626;font-weight:700">${totalSav>0?'−'+fmtS(Math.round(totalSav)):'–'}</td>
+    <td></td><td>100%</td>
   </tr>`;
 }
 
@@ -2064,19 +2838,162 @@ function openStudy(id) {
 }
 
 /* ───────── CSV Export ───────── */
-function exportCSV() {
-  if (!cur) return;
-  const rows = [['Nr','Tätigkeit','IST (s)','E','K','U','V','Int','Ext','SOLL (s)','Bemerkung']];
-  tsa_cur.items.forEach((i,idx) => {
-    rows.push([idx+1, i.name, Math.round(i.ms/1000),
-      i.ekuv.E?'x':'', i.ekuv.K?'x':'', i.ekuv.U?'x':'', i.ekuv.V?'x':'', i.ekuv.Int?'x':'', i.ekuv.Ext?'x':'',
-      i.soll||'', i.remark]);
+function tsaExportCSV() {
+  // Redirect to Excel export
+  tsaExportExcel();
+}
+
+function tsaExportExcel() {
+  if (!tsa_cur || !tsa_cur.items.length) return;
+
+  const EKUV_KEYS = ['E','K','U','V','Int','Ext'];
+  const items = tsa_cur.items;
+
+  // ── Helper: minutes from ms ──
+  const toMin = ms => Math.round(ms / 1000 / 60 * 100) / 100;
+  const fmtMin = ms => toMin(ms).toFixed(2);
+
+  // ── Sheet 1: EKUV-Tabelle ──
+  const wb = XLSX.utils.book_new();
+
+  // Build rows
+  const ekuvCols = { E:'Eliminieren', K:'Kombinieren', U:'Umstellen',
+                     V:'Vereinfachen', Int:'Intern', Ext:'Extern' };
+
+  const s1_data = [
+    ['Tätigkeitsstrukturanalyse nach E K U V'],
+    ['Datum',         tsa_cur.date],
+    ['Ersteller',     tsa_cur.author || ''],
+    ['Arbeitsprozess',tsa_cur.name],
+    [],
+    ['Nr.','Arbeitsschritte','Dauer (ist)',
+     'Eliminieren','Kombinieren','Umstellen','Vereinfachen','Intern','Extern',
+     'Dauer (soll)','Bemerkung','Fotos'],
+  ];
+
+  const istTotal  = items.reduce((s,i) => s + i.ms/1000/60, 0);
+  // soll is stored in SECONDS — convert to minutes for display
+  const sollTotal = items.reduce((s,i) => {
+    const v = parseFloat(i.soll); // seconds
+    return s + (isNaN(v) ? i.ms/1000/60 : v/60); // convert to minutes
+  }, 0);
+
+  items.forEach((item, idx) => {
+    const istMin  = toMin(item.ms);
+    const sollSec = parseFloat(item.soll); // stored as seconds
+    const sollMin = isNaN(sollSec) ? istMin : Math.round(sollSec / 60 * 100) / 100;
+    const row = [
+      idx + 1,
+      item.name,
+      istMin,
+      item.ekuv.E   ? 'x' : '',
+      item.ekuv.K   ? 'x' : '',
+      item.ekuv.U   ? 'x' : '',
+      item.ekuv.V   ? 'x' : '',
+      item.ekuv.Int ? 'x' : '',
+      item.ekuv.Ext ? 'x' : '',
+      sollMin,
+      item.remark || '',
+      '',
+    ];
+    s1_data.push(row);
   });
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
-  a.download = tsa_cur.name.replace(/\s+/g,'_') + '_TSA.csv';
-  a.click();
+
+  // Sum row
+  const ekuvSums = EKUV_KEYS.map(k =>
+    Math.round(items.filter(i=>i.ekuv[k]).reduce((s,i)=>s+i.ms/1000/60,0)*100)/100
+  );
+  s1_data.push([
+    '', 'Summe',
+    Math.round(istTotal * 100) / 100,
+    ...ekuvSums,
+    Math.round(sollTotal * 100) / 100,
+    '', ''
+  ]);
+
+  // Einsparung row
+  const einspar = istTotal - sollTotal;
+  const pct = istTotal > 0 ? Math.round(einspar / istTotal * 100) : 0;
+  s1_data.push([]);
+  s1_data.push([`Einsparung:`, `${einspar.toFixed(2)} min (${pct}%)`]);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(s1_data);
+
+  // Column widths
+  ws1['!cols'] = [
+    {wch:6},{wch:36},{wch:12},{wch:13},{wch:13},{wch:12},{wch:14},{wch:8},{wch:8},
+    {wch:12},{wch:32},{wch:12}
+  ];
+
+  // Merge title cell
+  ws1['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:11} }];
+
+  XLSX.utils.book_append_sheet(wb, ws1, 'EKUV-Tabelle');
+
+  // ── Sheet 2: Wasserfall ──
+  const ekuvGrouped = {
+    E: items.filter(i=>i.ekuv.E).reduce((s,i)=>s+i.ms/1000/60,0),
+    K: items.filter(i=>i.ekuv.K).reduce((s,i)=>s+i.ms/1000/60,0),
+    U: items.filter(i=>i.ekuv.U).reduce((s,i)=>s+i.ms/1000/60,0),
+    V: items.filter(i=>i.ekuv.V).reduce((s,i)=>s+i.ms/1000/60,0),
+  };
+
+  const s2_data = [
+    ['Wasserfall-Diagramm'],
+    ['Arbeitsprozess', tsa_cur.name],
+    ['Datum',          tsa_cur.date],
+    ['Ersteller',      tsa_cur.author || ''],
+    [],
+    ['IST (Vorher)', '', `${istTotal.toFixed(2)} min`],
+    [],
+    [`- Eliminieren (E)`, '', `-${ekuvGrouped.E.toFixed(2)} min (-${Math.round(ekuvGrouped.E/istTotal*100)}%)`],
+    [`- Kombinieren (K)`, '', `-${ekuvGrouped.K.toFixed(2)} min (-${Math.round(ekuvGrouped.K/istTotal*100)}%)`],
+    [`- Umstellen (U)`,   '', `-${ekuvGrouped.U.toFixed(2)} min (-${Math.round(ekuvGrouped.U/istTotal*100)}%)`],
+    [`- Vereinfachen (V)`,``, `-${ekuvGrouped.V.toFixed(2)} min (-${Math.round(ekuvGrouped.V/istTotal*100)}%)`],
+    [],
+    ['\u2192 SOLL (Nachher)', '', `${sollTotal.toFixed(2)} min (${100-pct}%)`],
+    [],
+    ['Gesamte Einsparung', '', `${einspar.toFixed(2)} min (${pct}% Reduktion)`],
+    [],
+    [],
+    // Right-side data table for chart
+    ['','','','','', 'Kategorie','Kurzform','IST','Basis','Stufen','Reduktion %'],
+  ];
+
+  // Build waterfall data table
+  let cumBase = istTotal;
+  const wfRows = [
+    ['Dauer (IST)',    'IST',  istTotal,  0,       istTotal,  1.0],
+    ['Eliminieren',    'E',    null, istTotal - ekuvGrouped.E, ekuvGrouped.E, ekuvGrouped.E/istTotal],
+    ['Kombinieren',    'K',    null, istTotal - ekuvGrouped.E - ekuvGrouped.K, ekuvGrouped.K, ekuvGrouped.K/istTotal],
+    ['Umstellen',      'U',    null, sollTotal + ekuvGrouped.V, ekuvGrouped.U, ekuvGrouped.U/istTotal],
+    ['Vereinfachen',   'V',    null, sollTotal, ekuvGrouped.V, ekuvGrouped.V/istTotal],
+    ['\u2192 SOLL',   'SOLL', null, 0, sollTotal, sollTotal/istTotal],
+  ];
+
+  wfRows.forEach((r, i) => {
+    s2_data.push([
+      '','','','','',
+      r[0], r[1],
+      r[2] !== null ? Math.round(r[2]*100)/100 : '',
+      Math.round(r[3]*100)/100,
+      Math.round(r[4]*100)/100,
+      `${Math.round(r[5]*100)}%`
+    ]);
+  });
+
+  const ws2 = XLSX.utils.aoa_to_sheet(s2_data);
+  ws2['!cols'] = [
+    {wch:22},{wch:4},{wch:24},{wch:4},{wch:4},
+    {wch:18},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12}
+  ];
+  ws2['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:4} }];
+
+  XLSX.utils.book_append_sheet(wb, ws2, 'Wasserfall-Diagramm');
+
+  // ── Download ──
+  const filename = (tsa_cur.name || 'TSA').replace(/\s+/g,'_') + '_Export.xlsx';
+  XLSX.writeFile(wb, filename);
 }
 
 
@@ -3933,6 +4850,755 @@ function showToast(msg) {
 ═══════════════════════════════════════════ */
 /* ─── INIT ─── */
 initApp();
+
+/* ═══════════════════════════════════════════
+   TPM — Reinigung & Wartung
+═══════════════════════════════════════════ */
+let tpmDB = { machines:[], tools:[], tasks:[], logs:[] };
+let tpmCurMachine = null;
+let tpmPendingMachineImg = null;
+let tpmPendingTaskImg    = null;
+let tpmPendingToolImg    = null;
+
+/* ── Supabase helpers ── */
+async function tpmLoad() {
+  try {
+    const [machines, tools, tasks, logs] = await Promise.all([
+      supa.get('tpm_machines?active=eq.true&order=name.asc'),
+      supa.get('tpm_tools?order=name.asc'),
+      supa.get('tpm_tasks?active=eq.true&order=nr.asc'),
+      supa.get('tpm_logs?order=created_at.desc'),
+    ]);
+    tpmDB = {
+      machines: machines || [],
+      tools:    tools    || [],
+      tasks:    tasks    || [],
+      logs:     logs     || [],
+    };
+    const badge = document.getElementById('tpm-badge-machines');
+    if (badge) badge.textContent = tpmDB.machines.length || '';
+    const navBadge = document.getElementById('nav-tpm-badge');
+    if (navBadge) navBadge.textContent = tpmDB.machines.length;
+  } catch(e) { console.warn('TPM load failed:', e.message); }
+}
+
+async function tpmSaveRecord(table, record) {
+  try {
+    await supa.post(table, record);
+    return true;
+  } catch(e) { tpmToast('❌ Fehler: '+e.message); return false; }
+}
+
+async function tpmDeleteRecord(table, id) {
+  try { await supa.delete(`${table}?id=eq.${id}`); return true; }
+  catch(e) { tpmToast('❌ Fehler: '+e.message); return false; }
+}
+
+/* ── Navigation ── */
+const TPM_SECTIONS = ['overview','machine','machines-admin','tools-admin'];
+
+function tpmShowSection(sec) {
+  TPM_SECTIONS.forEach(s => {
+    const el = document.getElementById('tpm-sec-'+s);
+    if (el) el.classList.toggle('active', s===sec);
+    const btn = document.getElementById('tpm-snav-'+s);
+    if (btn) btn.classList.toggle('active', s===sec);
+    const mbtn = document.getElementById('tpm-mnav-'+s);
+    if (mbtn) mbtn.classList.toggle('active', s===sec);
+  });
+  const content = document.querySelector('#pane-tpm .s5-content');
+  if (content) content.scrollTop = 0;
+
+  if (sec==='overview')       tpmRenderOverview();
+  if (sec==='machines-admin') tpmRenderMachinesList();
+  if (sec==='tools-admin')    tpmRenderToolsList();
+  if (sec==='machine' && tpmCurMachine) tpmRenderMachine();
+}
+
+function tpmSwitchTab(tab) {
+  ['tasks','add-task','log'].forEach(t => {
+    document.getElementById('tpm-tab-'+t)?.classList.toggle('active', t===tab);
+    document.getElementById('tpm-panel-'+t)?.classList.toggle('active', t===tab);
+  });
+  if (tab==='tasks')    tpmRenderTasksList();
+  if (tab==='add-task') tpmRenderAddTask();
+  if (tab==='log')      tpmRenderLog();
+}
+
+/* ── Toast ── */
+let tpmToastTimer;
+function tpmToast(msg) {
+  const el = document.getElementById('tpm-toast');
+  if (!el) return;
+  el.textContent = msg; el.style.opacity = '1';
+  clearTimeout(tpmToastTimer);
+  tpmToastTimer = setTimeout(() => el.style.opacity='0', 2500);
+}
+
+/* ── Lightbox ── */
+function tpmOpenLightbox(src) {
+  document.getElementById('tpm-lightbox-img').src = src;
+  document.getElementById('tpm-lightbox').classList.add('open');
+}
+function tpmCloseLightbox() {
+  document.getElementById('tpm-lightbox').classList.remove('open');
+}
+
+/* ── Image compression (reuse existing) ── */
+function tpmCompressImg(dataURL, cb) {
+  compressImage(dataURL, 800, 0.72, cb);
+}
+
+/* ══ ÜBERSICHT ══ */
+function tpmRenderOverview() {
+  const machines = tpmDB.machines;
+
+  // Populate filters
+  const locSel  = document.getElementById('tpm-filter-location');
+  const areaSel = document.getElementById('tpm-filter-area');
+  if (locSel && locSel.options.length <= 1) {
+    [...new Set(machines.map(m=>m.location).filter(Boolean))].sort().forEach(l => {
+      const o = document.createElement('option'); o.value=l; o.textContent=l; locSel.appendChild(o);
+    });
+  }
+  if (areaSel && areaSel.options.length <= 1) {
+    [...new Set(machines.map(m=>m.area).filter(Boolean))].sort().forEach(a => {
+      const o = document.createElement('option'); o.value=a; o.textContent=a; areaSel.appendChild(o);
+    });
+  }
+
+  const locFilter  = locSel?.value  || 'all';
+  const areaFilter = areaSel?.value || 'all';
+
+  const filtered = machines.filter(m =>
+    (locFilter  === 'all' || m.location === locFilter) &&
+    (areaFilter === 'all' || m.area     === areaFilter)
+  );
+
+  const grid = document.getElementById('tpm-overview-grid');
+  if (!grid) return;
+
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-hint" style="grid-column:1/-1">
+      <div style="font-size:32px;margin-bottom:8px">🏭</div>
+      Noch keine Maschinen angelegt.<br>
+      <button class="btn-sm" style="margin-top:12px" onclick="tpmShowSection('machines-admin')">Maschine anlegen →</button>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(m => {
+    const taskCount = tpmDB.tasks.filter(t=>t.machine_id===m.id).length;
+    const catBg = {'Reinigung':'#dbeafe','Wartung':'#ffedd5','Hygiene':'#ede9fe','Qualität':'#d1fae5','Sicherheit':'#fee2e2'};
+    const cats = [...new Set(tpmDB.tasks.filter(t=>t.machine_id===m.id).map(t=>t.category))];
+
+    return `<div class="tpm-machine-card" onclick="tpmOpenMachine('${m.id}')">
+      <div class="tpm-machine-img-wrap">
+        ${m.image ? `<img src="${m.image}" alt="${m.name}">` : '🏭'}
+      </div>
+      <div class="tpm-machine-body">
+        <div class="tpm-machine-name">${m.name}</div>
+        <div class="tpm-machine-meta">${[m.area, m.location, m.ort].filter(Boolean).join(' · ')}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+          ${cats.map(c=>`<span class="tpm-cat-badge tpm-cat-${c}">${c}</span>`).join('')}
+        </div>
+        <div class="tpm-machine-stats">
+          <div class="tpm-machine-stat">
+            <div class="tpm-machine-stat-val">${taskCount}</div>
+            <div class="tpm-machine-stat-lbl">Aufgaben</div>
+          </div>
+          <div class="tpm-machine-stat">
+            <div class="tpm-machine-stat-val" style="color:#059669">${tpmDB.tasks.filter(t=>t.machine_id===m.id&&t.interval==='taeglich').length}</div>
+            <div class="tpm-machine-stat-lbl">Täglich</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function tpmOpenMachine(id) {
+  tpmCurMachine = tpmDB.machines.find(m=>m.id===id);
+  if (!tpmCurMachine) return;
+
+  document.getElementById('tpm-machine-title').textContent = tpmCurMachine.name;
+  document.getElementById('tpm-machine-sub').textContent =
+    [tpmCurMachine.area, tpmCurMachine.location, tpmCurMachine.ort, tpmCurMachine.hersteller].filter(Boolean).join(' · ');
+
+  const snavBtn = document.getElementById('tpm-snav-machine');
+  if (snavBtn) {
+    snavBtn.style.display = 'flex';
+    document.getElementById('tpm-snav-machine-label').textContent = tpmCurMachine.name;
+  }
+
+  tpmShowSection('machine');
+  tpmSwitchTab('tasks');
+}
+
+/* ══ AUFGABEN ══ */
+function tpmRenderMachine() {
+  tpmSwitchTab('tasks');
+}
+
+function tpmRenderTasksList() {
+  if (!tpmCurMachine) return;
+  const tasks = tpmDB.tasks.filter(t=>t.machine_id===tpmCurMachine.id);
+  const el = document.getElementById('tpm-tasks-list');
+  if (!el) return;
+
+  if (!tasks.length) {
+    el.innerHTML = `<div class="empty-hint">Noch keine Aufgaben für diese Maschine.<br>
+      <button class="btn-sm" style="margin-top:10px" onclick="tpmSwitchTab('add-task')">+ Aufgabe hinzufügen</button></div>`;
+    return;
+  }
+
+  // Group by category
+  const cats = [...new Set(tasks.map(t=>t.category||'Reinigung'))];
+  const intervalLabels = {taeglich:'Täglich',woechentlich:'Wöchentlich',monatlich:'Monatlich',jaehrlich:'Jährlich'};
+  const shiftLabels    = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
+
+  el.innerHTML = cats.map(cat => {
+    const catTasks = tasks.filter(t=>(t.category||'Reinigung')===cat);
+    return `
+      <div style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span class="tpm-cat-badge tpm-cat-${cat}">${cat}</span>
+          <span style="font-size:12px;color:#9ca3af">${catTasks.length} Aufgabe${catTasks.length!==1?'n':''}</span>
+        </div>
+        ${catTasks.map(task => {
+          const taskTools = (task.tool_ids||[]).map(tid => tpmDB.tools.find(t=>t.id===tid)).filter(Boolean);
+          const shifts    = (task.shifts||[]).map(s=>shiftLabels[s]||s).join(', ');
+          return `<div class="tpm-task-card">
+            <div class="tpm-task-header">
+              ${task.image
+                ? `<img src="${task.image}" class="tpm-task-img" onclick="tpmOpenLightbox('${task.image}')">`
+                : `<div class="tpm-task-img-ph">📷</div>`}
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:14px;margin-bottom:3px">${task.title}</div>
+                ${task.description ? `<div style="font-size:12px;color:#6b7280;margin-bottom:6px;line-height:1.4">${task.description}</div>` : ''}
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <span style="font-size:11px;background:#f3f4f6;padding:2px 7px;border-radius:5px;color:#374151">
+                    🔁 ${intervalLabels[task.interval]||task.interval||'–'}
+                  </span>
+                  ${shifts ? `<span style="font-size:11px;background:#f3f4f6;padding:2px 7px;border-radius:5px;color:#374151">👤 ${shifts}</span>` : ''}
+                </div>
+              </div>
+              <button onclick="tpmDeleteTask('${task.id}')" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px;flex-shrink:0" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#d1d5db'" title="Löschen">✕</button>
+            </div>
+            ${taskTools.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid #f3f4f6;padding-top:8px">
+              <span style="font-size:11px;color:#9ca3af;align-self:center">Hilfsmittel:</span>
+              ${taskTools.map(tool => `<div class="tpm-tool-chip">
+                ${tool.image ? `<img src="${tool.image}">` : ''}
+                ${tool.name}
+              </div>`).join('')}
+            </div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>`;
+  }).join('');
+}
+
+function tpmRenderAddTask() {
+  // Populate tools checkboxes
+  const el = document.getElementById('tpm-task-tools-select');
+  if (!el) return;
+  el.innerHTML = tpmDB.tools.map(tool => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px">
+      <input type="checkbox" class="tpm-tool-check" value="${tool.id}">
+      ${tool.image ? `<img src="${tool.image}" style="width:18px;height:18px;object-fit:cover;border-radius:3px">` : ''}
+      ${tool.name}
+    </label>`).join('') || '<span style="color:#9ca3af;font-size:12px">Noch keine Hilfsmittel angelegt</span>';
+}
+
+async function tpmSaveTask() {
+  if (!tpmCurMachine) return;
+  const title = document.getElementById('tpm-task-title')?.value.trim();
+  if (!title) { tpmToast('Bitte Tätigkeit eingeben'); return; }
+
+  const shifts = ['frueh','normal','spaet','nacht'].filter(s => document.getElementById('tpm-shift-'+s)?.checked);
+  const toolIds = [...document.querySelectorAll('.tpm-tool-check:checked')].map(c=>c.value);
+
+  const task = {
+    id:         'task-'+Date.now(),
+    machine_id: tpmCurMachine.id,
+    nr:         tpmDB.tasks.filter(t=>t.machine_id===tpmCurMachine.id).length + 1,
+    category:   document.getElementById('tpm-task-category')?.value || 'Reinigung',
+    type:       'reinigung',
+    title,
+    description: document.getElementById('tpm-task-desc')?.value.trim() || '',
+    interval:   document.getElementById('tpm-task-interval')?.value || 'taeglich',
+    shifts,
+    tool_ids:   toolIds,
+    image:      tpmPendingTaskImg || null,
+    active:     true,
+  };
+
+  const ok = await tpmSaveRecord('tpm_tasks', task);
+  if (ok) {
+    tpmDB.tasks.push(task);
+    tpmPendingTaskImg = null;
+    // Reset form
+    ['tpm-task-title','tpm-task-desc'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    ['frueh','normal','spaet','nacht'].forEach(s => { const el=document.getElementById('tpm-shift-'+s); if(el) el.checked=false; });
+    document.querySelectorAll('.tpm-tool-check').forEach(c=>c.checked=false);
+    document.getElementById('tpm-task-img-preview-wrap').style.display='none';
+    tpmToast('✅ Aufgabe gespeichert');
+    tpmSwitchTab('tasks');
+  }
+}
+
+async function tpmDeleteTask(id) {
+  if (!confirm('Aufgabe löschen?')) return;
+  const ok = await tpmDeleteRecord('tpm_tasks', id);
+  if (ok) {
+    tpmDB.tasks = tpmDB.tasks.filter(t=>t.id!==id);
+    tpmRenderTasksList();
+    tpmToast('Aufgabe gelöscht');
+  }
+}
+
+/* ══ PROTOKOLL ══ */
+function tpmRenderLog() {
+  if (!tpmCurMachine) return;
+  const logs = tpmDB.logs.filter(l=>l.machine_id===tpmCurMachine.id).slice(0,50);
+  const el   = document.getElementById('tpm-log-content');
+  if (!el) return;
+  if (!logs.length) { el.innerHTML = '<div class="empty-hint">Noch keine Einträge im Protokoll.</div>'; return; }
+  const shiftLabels = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
+  el.innerHTML = logs.map(log => {
+    const task = tpmDB.tasks.find(t=>t.id===log.task_id);
+    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+      <div style="width:8px;height:8px;border-radius:50%;background:${log.done?'#059669':'#9ca3af'};flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${task?.title||'–'}</div>
+        <div style="font-size:11px;color:#9ca3af">${log.done_by||'–'} · KW ${log.kw}/${log.year} · ${log.weekday} · ${shiftLabels[log.shift]||log.shift}</div>
+        ${log.note ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">📝 ${log.note}</div>` : ''}
+      </div>
+      <span style="font-size:11px;color:${log.done?'#059669':'#9ca3af'}">${log.done?'✓ Erledigt':'Offen'}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ══ MASCHINEN STAMMDATEN ══ */
+function tpmRenderMachinesList() {
+  const el = document.getElementById('tpm-machines-list');
+  if (!el) return;
+  if (!tpmDB.machines.length) { el.innerHTML = '<div class="empty-hint">Noch keine Maschinen angelegt.</div>'; return; }
+  el.innerHTML = tpmDB.machines.map(m => `
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+      <div style="width:44px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:20px">
+        ${m.image ? `<img src="${m.image}" style="width:100%;height:100%;object-fit:cover">` : '🏭'}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:14px">${m.name}</div>
+        <div style="font-size:12px;color:#6b7280">${[m.area,m.location,m.ort,m.hersteller].filter(Boolean).join(' · ')}</div>
+      </div>
+      <button onclick="tpmOpenMachine('${m.id}')" class="btn-sm">Öffnen →</button>
+      <button onclick="tpmDeleteMachine('${m.id}')" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#d1d5db'" title="Löschen">✕</button>
+    </div>`).join('');
+}
+
+function tpmMachineImgSelected(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => compressImage(ev.target.result, 800, 0.72, compressed => {
+    tpmPendingMachineImg = compressed;
+    const img = document.getElementById('tpm-m-img-preview');
+    const wrap = document.getElementById('tpm-m-img-preview-wrap');
+    if (img) img.src = compressed;
+    if (wrap) wrap.style.display = 'inline-block';
+  });
+  r.readAsDataURL(f); e.target.value='';
+}
+function tpmMachineImgClear() {
+  tpmPendingMachineImg = null;
+  const wrap = document.getElementById('tpm-m-img-preview-wrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+async function tpmSaveMachine() {
+  const name = document.getElementById('tpm-m-name')?.value.trim();
+  if (!name) { tpmToast('Bitte Maschinenname eingeben'); return; }
+  const machine = {
+    id:          'mach-'+Date.now(),
+    name,
+    hersteller:  document.getElementById('tpm-m-hersteller')?.value.trim()||'',
+    location:    document.getElementById('tpm-m-location')?.value.trim()||'',
+    area:        document.getElementById('tpm-m-area')?.value.trim()||'',
+    ort:         document.getElementById('tpm-m-ort')?.value.trim()||'',
+    technologie: document.getElementById('tpm-m-technologie')?.value.trim()||'',
+    image:       tpmPendingMachineImg || null,
+    active:      true,
+  };
+  const ok = await tpmSaveRecord('tpm_machines', machine);
+  if (ok) {
+    tpmDB.machines.push(machine);
+    tpmPendingMachineImg = null;
+    ['tpm-m-name','tpm-m-hersteller','tpm-m-location','tpm-m-area','tpm-m-ort','tpm-m-technologie'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    document.getElementById('tpm-m-img-preview-wrap').style.display='none';
+    const badge = document.getElementById('tpm-badge-machines');
+    if (badge) badge.textContent = tpmDB.machines.length;
+    tpmToast('✅ Maschine gespeichert');
+    tpmRenderMachinesList();
+  }
+}
+
+async function tpmDeleteMachine(id) {
+  if (!confirm('Maschine löschen? Alle zugehörigen Aufgaben werden ebenfalls gelöscht.')) return;
+  const ok = await tpmDeleteRecord('tpm_machines', id);
+  if (ok) {
+    tpmDB.machines = tpmDB.machines.filter(m=>m.id!==id);
+    tpmDB.tasks    = tpmDB.tasks.filter(t=>t.machine_id!==id);
+    tpmRenderMachinesList();
+    tpmToast('Maschine gelöscht');
+  }
+}
+
+/* ══ HILFSMITTEL STAMMDATEN ══ */
+function tpmRenderToolsList() {
+  const el = document.getElementById('tpm-tools-list');
+  if (!el) return;
+  if (!tpmDB.tools.length) { el.innerHTML = '<div class="empty-hint">Noch keine Hilfsmittel angelegt.</div>'; return; }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">` +
+    tpmDB.tools.map(tool => `
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;position:relative">
+        <div style="height:80px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;overflow:hidden">
+          ${tool.image
+            ? `<img src="${tool.image}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="tpmOpenLightbox('${tool.image}')">`
+            : `<span style="font-size:28px">🛠️</span>`}
+        </div>
+        <div style="padding:8px 10px">
+          <div style="font-weight:600;font-size:13px">${tool.name}</div>
+          ${tool.description ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px">${tool.description}</div>` : ''}
+        </div>
+        <button onclick="tpmDeleteTool('${tool.id}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.4);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Löschen">✕</button>
+      </div>`).join('') + '</div>';
+}
+
+function tpmToolImgSelected(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => compressImage(ev.target.result, 400, 0.72, compressed => {
+    tpmPendingToolImg = compressed;
+    const img = document.getElementById('tpm-t-img-preview');
+    const wrap = document.getElementById('tpm-t-img-preview-wrap');
+    if (img) img.src = compressed;
+    if (wrap) wrap.style.display = 'inline-block';
+  });
+  r.readAsDataURL(f); e.target.value='';
+}
+function tpmToolImgClear() {
+  tpmPendingToolImg = null;
+  const wrap = document.getElementById('tpm-t-img-preview-wrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+async function tpmSaveTool() {
+  const name = document.getElementById('tpm-t-name')?.value.trim();
+  if (!name) { tpmToast('Bitte Name eingeben'); return; }
+  const tool = {
+    id:          'tool-'+Date.now(),
+    name,
+    description: document.getElementById('tpm-t-desc')?.value.trim()||'',
+    image:       tpmPendingToolImg || null,
+  };
+  const ok = await tpmSaveRecord('tpm_tools', tool);
+  if (ok) {
+    tpmDB.tools.push(tool);
+    tpmPendingToolImg = null;
+    ['tpm-t-name','tpm-t-desc'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('tpm-t-img-preview-wrap').style.display='none';
+    tpmToast('✅ Hilfsmittel gespeichert');
+    tpmRenderToolsList();
+  }
+}
+
+async function tpmDeleteTool(id) {
+  if (!confirm('Hilfsmittel löschen?')) return;
+  const ok = await tpmDeleteRecord('tpm_tools', id);
+  if (ok) { tpmDB.tools = tpmDB.tools.filter(t=>t.id!==id); tpmRenderToolsList(); tpmToast('Gelöscht'); }
+}
+
+function tpmTaskImgSelected(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => compressImage(ev.target.result, 800, 0.72, compressed => {
+    tpmPendingTaskImg = compressed;
+    const img = document.getElementById('tpm-task-img-preview');
+    const wrap = document.getElementById('tpm-task-img-preview-wrap');
+    if (img) img.src = compressed;
+    if (wrap) wrap.style.display = 'inline-block';
+  });
+  r.readAsDataURL(f); e.target.value='';
+}
+function tpmTaskImgClear() {
+  tpmPendingTaskImg = null;
+  const wrap = document.getElementById('tpm-task-img-preview-wrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+/* ══ PDF: Aushang ══ */
+function tpmGenerateAushang() {
+  if (!tpmCurMachine) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'l', unit:'mm', format:'a4' });
+  const W=297, H=210, ML=10, MR=10, MT=10;
+  let y = MT;
+
+  const m = tpmCurMachine;
+  const tasks = tpmDB.tasks.filter(t=>t.machine_id===m.id);
+  const intervalLabels = {taeglich:'Täglich',woechentlich:'Wöchentlich',monatlich:'Monatlich',jaehrlich:'Jährlich'};
+  const shiftLabels    = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
+  const catColors = {Reinigung:[59,130,246],Wartung:[249,115,22],Hygiene:[139,92,246],Qualität:[5,150,105],Sicherheit:[220,38,38]};
+
+  // ── Header ──
+  doc.setFillColor(17,17,17); doc.rect(0,0,W,16,'F');
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.text('REINIGUNGSPLAN', ML, 10);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
+  doc.text('Lean Plus · Aufgabenübersicht', W-MR, 10, {align:'right'});
+  y = 20;
+
+  // ── Machine info ──
+  doc.setFillColor(249,250,251); doc.roundedRect(ML,y,W-ML-MR,18,2,2,'F');
+  doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+  doc.text(m.name, ML+4, y+8);
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+  const metaParts = [m.area, m.location, m.ort, m.hersteller, m.technologie].filter(Boolean);
+  doc.text(metaParts.join('  ·  '), ML+4, y+14);
+  doc.setFontSize(8); doc.setTextColor(17,17,17);
+  doc.text(`KW: ${getKW(new Date())}  ·  Stand: ${new Date().toLocaleDateString('de-DE')}`, W-MR-4, y+11, {align:'right'});
+  y += 24;
+
+  // ── Tasks table header ──
+  const colW = {nr:10, img:28, title:60, desc:90, interval:18, shifts:22, tools:50};
+  const rowH = 24;
+
+  doc.setFillColor(30,30,30); doc.rect(ML,y,W-ML-MR,8,'F');
+  doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  let cx = ML+1;
+  [['Nr',colW.nr],['Objekt / Foto',colW.img],['Tätigkeit',colW.title],
+   ['Beschreibung / Sollzustand',colW.desc],['Intervall',colW.interval],
+   ['Schicht',colW.shifts],['Hilfsmittel',colW.tools]].forEach(([lbl,w]) => {
+    doc.text(lbl, cx+1, y+5.5); cx+=w;
+  });
+  y += 8;
+
+  // ── Group by category ──
+  const cats = [...new Set(tasks.map(t=>t.category||'Reinigung'))];
+  cats.forEach(cat => {
+    const catTasks = tasks.filter(t=>(t.category||'Reinigung')===cat);
+    const rgb = catColors[cat]||[100,100,100];
+
+    // Category header
+    doc.setFillColor(...rgb.map(c=>Math.round(c*0.15+220)));
+    doc.setDrawColor(...rgb);
+    doc.setLineWidth(0.3);
+    doc.rect(ML,y,W-ML-MR,6,'FD');
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...rgb);
+    doc.text(cat, ML+3, y+4.2);
+    y+=6;
+
+    catTasks.forEach((task, idx) => {
+      const bg = idx%2===0 ? [255,255,255] : [249,250,251];
+      doc.setFillColor(...bg); doc.rect(ML,y,W-ML-MR,rowH,'F');
+      doc.setDrawColor(229,231,235); doc.setLineWidth(0.2);
+      doc.rect(ML,y,W-ML-MR,rowH,'S');
+
+      cx = ML+1;
+      // Nr
+      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+      doc.text(String(task.nr||idx+1), cx+colW.nr/2, y+rowH/2+1, {align:'center'}); cx+=colW.nr;
+
+      // Foto
+      if (task.image) {
+        try { doc.addImage(task.image,'JPEG',cx+1,y+1,colW.img-3,rowH-2,undefined,'FAST'); }
+        catch(e) { doc.setFontSize(6); doc.setTextColor(200,200,200); doc.text('(Foto)',cx+colW.img/2,y+rowH/2,{align:'center'}); }
+      } else {
+        doc.setFontSize(6); doc.setTextColor(200,200,200);
+        doc.text('(kein Foto)', cx+colW.img/2, y+rowH/2+1, {align:'center'});
+      }
+      cx+=colW.img;
+
+      // Tätigkeit
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+      const titleLines = doc.splitTextToSize(task.title, colW.title-3);
+      doc.text(titleLines.slice(0,2), cx+1, y+6);
+      cx+=colW.title;
+
+      // Beschreibung
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(55,65,81);
+      if (task.description) {
+        const descLines = doc.splitTextToSize(task.description, colW.desc-3);
+        doc.text(descLines.slice(0,3), cx+1, y+5);
+      }
+      cx+=colW.desc;
+
+      // Intervall
+      doc.setFontSize(7); doc.setTextColor(17,17,17);
+      doc.text(intervalLabels[task.interval]||'–', cx+1, y+rowH/2+1); cx+=colW.interval;
+
+      // Schichten
+      const shifts = (task.shifts||[]).map(s=>shiftLabels[s]||s).join('\n');
+      doc.text(shifts||'–', cx+1, y+6); cx+=colW.shifts;
+
+      // Hilfsmittel
+      const tools = (task.tool_ids||[]).map(tid=>tpmDB.tools.find(t=>t.id===tid)).filter(Boolean);
+      if (tools.length) {
+        doc.setFontSize(7);
+        tools.slice(0,2).forEach((tool,ti) => {
+          if (tool.image) {
+            try { doc.addImage(tool.image,'JPEG',cx+1,y+1+ti*11,10,10,undefined,'FAST'); }
+            catch(e){}
+          }
+          doc.text(tool.name.substring(0,18), cx+(tool.image?13:1), y+7+ti*11);
+        });
+      } else {
+        doc.setFontSize(7); doc.setTextColor(200,200,200); doc.text('–', cx+1, y+rowH/2+1);
+      }
+
+      y+=rowH;
+
+      // New page if needed
+      if (y > H-20) {
+        doc.addPage(); y=MT;
+        // Repeat header
+        doc.setFillColor(17,17,17); doc.rect(0,0,W,12,'F');
+        doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+        doc.text(`${m.name} · ${cat} (Fortsetzung)`, ML, 8);
+        y=16;
+      }
+    });
+  });
+
+  // Footer
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
+  doc.text(`Lean Plus · ${m.name} · Stand: ${new Date().toLocaleDateString('de-DE')}`, ML, H-4);
+
+  doc.save(`Reinigungsplan_${m.name.replace(/\s/g,'_')}.pdf`);
+}
+
+/* ══ PDF: Abreißkalender ══ */
+function tpmGenerateKalender() {
+  if (!tpmCurMachine) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'l', unit:'mm', format:'a4' });
+  const W=297, H=210, ML=10;
+  const m = tpmCurMachine;
+  const tasks = tpmDB.tasks.filter(t=>t.machine_id===m.id && t.interval==='taeglich');
+  const kw = getKW(new Date());
+  const year = new Date().getFullYear();
+  const weekdays = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+  const shiftLabels = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
+
+  // ── Header ──
+  doc.setFillColor(17,17,17); doc.rect(0,0,W,14,'F');
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.text(`NACHWEIS REINIGUNG & WARTUNG`, ML, 9);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
+  doc.text(`${m.name}  ·  KW ${kw}/${year}`, W-ML, 9, {align:'right'});
+
+  let y = 18;
+
+  // Machine info row
+  doc.setFillColor(249,250,251); doc.rect(ML,y,W-ML-ML,10,'F');
+  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+  doc.text(`Maschine: ${m.name}`, ML+3, y+6);
+  doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+  doc.text([m.area, m.location, m.ort].filter(Boolean).join(' · '), ML+60, y+6);
+  y += 14;
+
+  // ── Column layout ──
+  const taskColW = 70;
+  const dayW = (W - ML - ML - taskColW) / 7;
+  const shiftH = 7;
+
+  // Day headers
+  doc.setFillColor(30,30,30); doc.rect(ML+taskColW, y, W-ML-ML-taskColW, 9,'F');
+  weekdays.forEach((day, di) => {
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+    doc.text(day.substring(0,2), ML+taskColW+di*dayW+dayW/2, y+6, {align:'center'});
+  });
+
+  // Task column header
+  doc.setFillColor(30,30,30); doc.rect(ML,y,taskColW,9,'F');
+  doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.text('Tätigkeit / Schicht', ML+3, y+6);
+  y+=9;
+
+  // ── Task rows ──
+  if (!tasks.length) {
+    doc.setFontSize(10); doc.setTextColor(156,163,175);
+    doc.text('Keine täglichen Aufgaben für diese Maschine', W/2, H/2, {align:'center'});
+  }
+
+  tasks.forEach((task, ti) => {
+    const shifts = task.shifts && task.shifts.length ? task.shifts : ['frueh','spaet'];
+    const rowH = shifts.length * shiftH + 2;
+    const bg = ti%2===0 ? [255,255,255] : [249,250,251];
+
+    doc.setFillColor(...bg); doc.rect(ML,y,W-ML-ML,rowH,'F');
+    doc.setDrawColor(229,231,235); doc.setLineWidth(0.2);
+    doc.rect(ML,y,W-ML-ML,rowH,'S');
+
+    // Task title
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+    const titleLines = doc.splitTextToSize(task.title, taskColW-5);
+    doc.text(titleLines[0], ML+2, y+shiftH-1);
+
+    // Shifts
+    shifts.forEach((shift, si) => {
+      const sy = y + si*shiftH + 2;
+      // Shift label
+      doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+      doc.text(shiftLabels[shift]||shift, ML+3, sy+4.5);
+
+      // Vertical line between task and days
+      doc.setDrawColor(229,231,235); doc.setLineWidth(0.2);
+      doc.line(ML+taskColW, sy, ML+taskColW, sy+shiftH);
+
+      // Day cells
+      weekdays.forEach((_, di) => {
+        const dx = ML+taskColW+di*dayW;
+        // Cell border
+        doc.rect(dx, sy, dayW, shiftH);
+        // Checkbox area
+        doc.setFillColor(250,250,250); doc.rect(dx+2, sy+1.5, dayW-4, shiftH-3,'F');
+      });
+    });
+
+    y+=rowH;
+  });
+
+  // ── Signature row ──
+  y+=4;
+  if (y < H-24) {
+    doc.setFillColor(249,250,251); doc.rect(ML,y,W-ML-ML,20,'F');
+    doc.setDrawColor(229,231,235); doc.setLineWidth(0.3);
+    doc.rect(ML,y,W-ML-ML,20,'S');
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+    doc.text('Unterschrift Schichtleiter:', ML+3, y+7);
+    weekdays.forEach((_, di) => {
+      const dx = ML+taskColW+di*dayW;
+      doc.line(dx+2, y+15, dx+dayW-2, y+15);
+    });
+  }
+
+  // Footer
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
+  doc.text(`Lean Plus · ${m.name} · KW ${kw}/${year} · Täglich drucken`, ML, H-4);
+
+  doc.save(`Kalender_KW${kw}_${m.name.replace(/\s/g,'_')}.pdf`);
+}
+
+function getKW(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  return Math.ceil((((d-yearStart)/86400000)+1)/7);
+}
 </script>
 <!-- ═══════════════════════════════════
      PASSWORTSCHUTZ
