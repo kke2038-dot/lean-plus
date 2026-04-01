@@ -867,12 +867,6 @@ body {
       <span class="tab-badge" id="nav-tpm-badge">0</span>
     </button>
   </div>
-  <button onclick="supabaseSetupOpen()" title="Supabase Einstellungen"
-    style="background:none;border:1px solid #e5e7eb;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:12px;color:#9ca3af;flex-shrink:0;margin-left:8px;transition:all .15s"
-    onmouseover="this.style.borderColor='#6b7280';this.style.color='#374151'"
-    onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#9ca3af'">
-    🗄️
-  </button>
 </nav>
 
 <!-- ═══════════════════════════════════
@@ -1739,25 +1733,19 @@ body {
    SUPABASE KONFIGURATION
    → URL und KEY hier eintragen (einmalig)
 ═══════════════════════════════════════════════════════ */
-// ── Supabase Konfiguration — wird beim ersten Start einmalig eingegeben ──
-const SUPA_CFG_KEY = 'lp_supa_config';
-let _supaCfg = null;
-try { _supaCfg = JSON.parse(localStorage.getItem(SUPA_CFG_KEY) || 'null'); } catch(e) {}
-
-const SUPA_URL = _supaCfg?.url || '';
-const SUPA_KEY = _supaCfg?.key || '';
+// ── Supabase Konfiguration ──
+// HIER URL UND KEY EINTRAGEN (einmalig in VS Code):
+const SUPA_URL = 'https://wyqmmiylrcrwinveiuor.supabase.co';   // https://wyqmmiylrcrwinveiuor.supabase.co
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5cW1taXlscmNyd2ludmVpdW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ5MjMsImV4cCI6MjA5MDQ3MDkyM30.i3T74kOe996Njhm7UfuaJzlbyFeffcCSvD8Jk1mn51s'; // anon public key aus Supabase → Settings → API
 
 const supa = {
-  _url() { try { return JSON.parse(localStorage.getItem(SUPA_CFG_KEY)||'{}').url || ''; } catch(e){ return ''; } },
-  _key() { try { return JSON.parse(localStorage.getItem(SUPA_CFG_KEY)||'{}').key || ''; } catch(e){ return ''; } },
   async _req(method, path, body) {
-    const url = this._url(), key = this._key();
-    if (!url || !key) throw new Error('Supabase nicht konfiguriert');
-    const r = await fetch(url + '/rest/v1/' + path, {
+    if (!SUPA_URL || !SUPA_KEY || SUPA_URL === 'DEINE_SUPABASE_URL') throw new Error('Supabase nicht konfiguriert');
+    const r = await fetch(SUPA_URL + '/rest/v1/' + path, {
       method,
       headers: {
-        'apikey': key,
-        'Authorization': 'Bearer ' + key,
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
         'Content-Type': 'application/json',
         'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=minimal' : 'return=minimal'
       },
@@ -1766,10 +1754,10 @@ const supa = {
     if (!r.ok) { const t = await r.text(); throw new Error(r.status + ': ' + t); }
     return r.status === 204 ? null : r.json();
   },
-  get:    (path)         => supa._req('GET',    path),
-  post:   (path, body)   => supa._req('POST',   path, body),
-  patch:  (path, body)   => supa._req('PATCH',  path, body),
-  delete: (path)         => supa._req('DELETE', path),
+  get:    (path)       => supa._req('GET',    path),
+  post:   (path, body) => supa._req('POST',   path, body),
+  patch:  (path, body) => supa._req('PATCH',  path, body),
+  delete: (path)       => supa._req('DELETE', path),
 };
 
 /* ─── 5S Audit DB ─── */
@@ -1872,15 +1860,16 @@ async function deleteTSAFromServer(id) {
 
 /* ─── Initialisierung ─── */
 async function initApp() {
-  // Prüfe ob Supabase konfiguriert ist
-  if (!SUPA_URL || !SUPA_KEY) {
-    showLoadingOverlay(false);
-    showSupabaseSetup();
+  if (!SUPA_URL || SUPA_URL === 'DEINE_SUPABASE_URL') {
+    console.warn('⚠️ Supabase nicht konfiguriert — nutze localStorage');
+    db = loadDB();
+    tsa_studies = JSON.parse(localStorage.getItem('lc_studies') || '[]');
+    renderLanding();
+    updateLandingBadges();
     return;
   }
 
   showLoadingOverlay(true);
-
   try {
     await loadDBFromServer();
     await loadTSAFromServer();
@@ -1889,13 +1878,12 @@ async function initApp() {
     updateLandingBadges();
   } catch(e) {
     showLoadingOverlay(false);
-    console.error('❌ Supabase Verbindungsfehler:', e);
+    console.error('❌ Supabase Fehler:', e);
     const errDiv = document.createElement('div');
     errDiv.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 20px;font-size:13px;color:#991b1b;z-index:9997;max-width:400px;text-align:center';
-    errDiv.innerHTML = `⚠️ Supabase Verbindung fehlgeschlagen.<br><small>${e.message}</small><br>
-      <button onclick="showSupabaseSetup()" style="margin-top:8px;background:#dc2626;color:#fff;border:none;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:12px">Einstellungen öffnen</button>`;
+    errDiv.textContent = '⚠️ Supabase Verbindung fehlgeschlagen: ' + e.message;
     document.body.appendChild(errDiv);
-    setTimeout(() => errDiv.remove(), 12000);
+    setTimeout(() => errDiv.remove(), 8000);
     db = loadDB();
     tsa_studies = JSON.parse(localStorage.getItem('lc_studies') || '[]');
     renderLanding();
@@ -1903,117 +1891,6 @@ async function initApp() {
   }
 }
 
-function showSupabaseSetup() {
-  // Entferne altes Setup falls vorhanden
-  const existing = document.getElementById('lp-supa-setup');
-  if (existing) existing.remove();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'lp-supa-setup';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';
-
-  const current = _supaCfg || {};
-
-  overlay.innerHTML = `
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:36px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,.1)">
-      <div style="font-size:22px;font-weight:700;color:#111;margin-bottom:4px">Lean<span style="color:#2563eb">Plus</span></div>
-      <div style="font-size:13px;color:#6b7280;margin-bottom:28px">Supabase Datenbank verbinden</div>
-
-      <div style="margin-bottom:16px">
-        <label style="display:block;font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Supabase Project URL</label>
-        <input id="setup-url" type="text"
-          value="${current.url||''}"
-          placeholder="https://xxxxxxxxxxxx.supabase.co"
-          style="width:100%;padding:10px 13px;border:1.5px solid #d1d5db;border-radius:9px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box"
-          onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#d1d5db'">
-      </div>
-
-      <div style="margin-bottom:24px">
-        <label style="display:block;font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Anon Public Key</label>
-        <input id="setup-key" type="password"
-          value="${current.key||''}"
-          placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
-          style="width:100%;padding:10px 13px;border:1.5px solid #d1d5db;border-radius:9px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box"
-          onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#d1d5db'">
-        <div style="margin-top:5px;font-size:11px;color:#9ca3af">Supabase → Settings → API → anon public</div>
-      </div>
-
-      <div id="setup-error" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;color:#dc2626;margin-bottom:16px"></div>
-
-      <button onclick="supabaseSetupSave()" id="setup-save-btn"
-        style="width:100%;padding:13px;background:#111;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .15s"
-        onmouseover="this.style.background='#333'" onmouseout="this.style.background='#111'">
-        Verbinden & Speichern
-      </button>
-
-      ${current.url ? `<button onclick="supabaseSetupSkip()" style="width:100%;margin-top:10px;padding:10px;background:none;color:#9ca3af;border:1px solid #e5e7eb;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit">Abbrechen</button>` : ''}
-
-      <div style="margin-top:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:11px;color:#0369a1;line-height:1.5">
-        🔒 Die Zugangsdaten werden nur in deinem Browser gespeichert und nie übertragen.
-      </div>
-    </div>`;
-
-  document.body.appendChild(overlay);
-  setTimeout(() => document.getElementById('setup-url')?.focus(), 100);
-}
-
-async function supabaseSetupSave() {
-  const url = document.getElementById('setup-url')?.value.trim();
-  const key = document.getElementById('setup-key')?.value.trim();
-  const errEl = document.getElementById('setup-error');
-  const btn   = document.getElementById('setup-save-btn');
-
-  if (!url || !url.startsWith('https://')) {
-    errEl.textContent = 'Bitte eine gültige Supabase URL eingeben (https://…)';
-    errEl.style.display = 'block'; return;
-  }
-  if (!key || key.length < 20) {
-    errEl.textContent = 'Bitte den Anon Public Key eingeben';
-    errEl.style.display = 'block'; return;
-  }
-
-  btn.textContent = 'Verbindung wird geprüft…';
-  btn.disabled = true;
-  errEl.style.display = 'none';
-
-  // Test connection
-  try {
-    const r = await fetch(url + '/rest/v1/audits?limit=1', {
-      headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
-    });
-    if (!r.ok && r.status !== 200 && r.status !== 406) {
-      throw new Error(`HTTP ${r.status} — Bitte URL und Key prüfen`);
-    }
-
-    // Save to localStorage
-    const cfg = { url, key };
-    localStorage.setItem(SUPA_CFG_KEY, JSON.stringify(cfg));
-    _supaCfg = cfg;
-
-    // Update global vars and restart
-    btn.textContent = '✅ Verbunden! App wird geladen…';
-
-    // Reload page to apply new config cleanly
-    setTimeout(() => location.reload(), 800);
-
-  } catch(e) {
-    errEl.textContent = 'Verbindung fehlgeschlagen: ' + e.message;
-    errEl.style.display = 'block';
-    btn.textContent = 'Verbinden & Speichern';
-    btn.disabled = false;
-  }
-}
-
-function supabaseSetupSkip() {
-  const overlay = document.getElementById('lp-supa-setup');
-  if (overlay) overlay.remove();
-  renderLanding();
-  updateLandingBadges();
-}
-
-function supabaseSetupOpen() {
-  showSupabaseSetup();
-}
 
 function showLoadingOverlay(show) {
   let ov = document.getElementById('lp-loading');
