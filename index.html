@@ -1734,8 +1734,8 @@ body {
    → URL und KEY hier eintragen (einmalig)
 ═══════════════════════════════════════════════════════ */
 // ── Supabase Konfiguration ──
-// HIER URL UND KEY EINTRAGEN (einmalig in VS Code):
-const SUPA_URL = 'https://wyqmmiylrcrwinveiuor.supabase.co';   // https://wyqmmiylrcrwinveiuor.supabase.co
+// NUR DEN KEY EINTRAGEN (einmalig in VS Code):
+const SUPA_URL = 'https://wyqmmiylrcrwinveiuor.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5cW1taXlscmNyd2ludmVpdW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ5MjMsImV4cCI6MjA5MDQ3MDkyM30.i3T74kOe996Njhm7UfuaJzlbyFeffcCSvD8Jk1mn51s'; // anon public key aus Supabase → Settings → API
 
 const supa = {
@@ -1752,7 +1752,10 @@ const supa = {
       body: body ? JSON.stringify(body) : undefined
     });
     if (!r.ok) { const t = await r.text(); throw new Error(r.status + ': ' + t); }
-    return r.status === 204 ? null : r.json();
+    // 204 No Content oder leere Antwort → null zurückgeben
+    const text = await r.text();
+    if (!text || !text.trim()) return null;
+    try { return JSON.parse(text); } catch(e) { return null; }
   },
   get:    (path)       => supa._req('GET',    path),
   post:   (path, body) => supa._req('POST',   path, body),
