@@ -4631,9 +4631,9 @@ function saveQuestion(i){
   if(!t)return;
   if(i===-1)db.questions.push({id:Date.now(),text:t,cat:c});
   else db.questions[i]={...db.questions[i],text:t,cat:c};
-  saveDB();closeModal();renderAdmin();
+  saveDB();saveSettingToServer('questions',db.questions);closeModal();renderAdmin();
 }
-function deleteQuestion(i){if(!confirm('Frage löschen?'))return;db.questions.splice(i,1);saveDB();renderAdmin();}
+function deleteQuestion(i){if(!confirm('Frage löschen?'))return;db.questions.splice(i,1);saveDB();saveSettingToServer('questions',db.questions);renderAdmin();}
 
 function renderAdminLocations(el) {
   el.innerHTML=`<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
@@ -4651,8 +4651,8 @@ function renderAdminLocations(el) {
 }
 function addLocation(){openModal(`<div class="modal-title">Standort hinzufügen</div><div class="field-wrap"><label class="field-label">Name <span class="req">*</span></label><input class="field-input" id="s5_l-name" placeholder="z.B. Werk Berlin"></div><div class="field-wrap"><label class="field-label">Abteilungen (kommagetrennt)</label><input class="field-input" id="s5_l-depts" placeholder="Montage, Logistik, Qualität"></div><button class="btn-primary" onclick="saveLocation(-1)">Speichern</button>`);}
 function editLocation(i){const l=db.locations[i];openModal(`<div class="modal-title">Standort bearbeiten</div><div class="field-wrap"><label class="field-label">Name</label><input class="field-input" id="s5_l-name" value="${l.name}"></div><div class="field-wrap"><label class="field-label">Abteilungen</label><input class="field-input" id="s5_l-depts" value="${(l.depts||[]).join(', ')}"></div><button class="btn-primary" onclick="saveLocation(${i})">Speichern</button>`);}
-function saveLocation(i){const n=document.getElementById('s5_l-name').value.trim(),d=document.getElementById('s5_l-depts').value.split(',').map(s=>s.trim()).filter(Boolean);if(!n)return;if(i===-1)db.locations.push({id:Date.now(),name:n,depts:d});else db.locations[i]={...db.locations[i],name:n,depts:d};saveDB();closeModal();renderAdmin();}
-function deleteLocation(i){if(!confirm('Löschen?'))return;db.locations.splice(i,1);saveDB();renderAdmin();}
+function saveLocation(i){const n=document.getElementById('s5_l-name').value.trim(),d=document.getElementById('s5_l-depts').value.split(',').map(s=>s.trim()).filter(Boolean);if(!n)return;if(i===-1)db.locations.push({id:Date.now(),name:n,depts:d});else db.locations[i]={...db.locations[i],name:n,depts:d};saveDB();saveSettingToServer('locations',db.locations);closeModal();renderAdmin();}
+function deleteLocation(i){if(!confirm('Löschen?'))return;db.locations.splice(i,1);saveDB();saveSettingToServer('locations',db.locations);renderAdmin();}
 
 function renderAdminAuditors(el) {
   el.innerHTML=`<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
@@ -4671,8 +4671,8 @@ function renderAdminAuditors(el) {
 }
 function addAuditor(){openModal(`<div class="modal-title">Auditor hinzufügen</div><div class="field-wrap"><label class="field-label">Name <span class="req">*</span></label><input class="field-input" id="s5_au-n" placeholder="Vollständiger Name"></div><div class="field-wrap"><label class="field-label">E-Mail</label><input class="field-input" type="email" id="s5_au-e" placeholder="email@example.com"></div><button class="btn-primary" onclick="saveAuditor(-1)">Speichern</button>`);}
 function editAuditor(i){const a=db.auditors[i];openModal(`<div class="modal-title">Auditor bearbeiten</div><div class="field-wrap"><label class="field-label">Name</label><input class="field-input" id="s5_au-n" value="${a.name}"></div><div class="field-wrap"><label class="field-label">E-Mail</label><input class="field-input" type="email" id="s5_au-e" value="${a.email||''}"></div><button class="btn-primary" onclick="saveAuditor(${i})">Speichern</button>`);}
-function saveAuditor(i){const n=document.getElementById('s5_au-n').value.trim(),e=document.getElementById('s5_au-e').value.trim();if(!n)return;if(i===-1)db.auditors.push({id:Date.now(),name:n,email:e});else db.auditors[i]={...db.auditors[i],name:n,email:e};saveDB();closeModal();renderAdmin();}
-function deleteAuditor(i){if(!confirm('Löschen?'))return;db.auditors.splice(i,1);saveDB();renderAdmin();}
+function saveAuditor(i){const n=document.getElementById('s5_au-n').value.trim(),e=document.getElementById('s5_au-e').value.trim();if(!n)return;if(i===-1)db.auditors.push({id:Date.now(),name:n,email:e});else db.auditors[i]={...db.auditors[i],name:n,email:e};saveDB();saveSettingToServer('auditors',db.auditors);closeModal();renderAdmin();}
+function deleteAuditor(i){if(!confirm('Löschen?'))return;db.auditors.splice(i,1);saveDB();saveSettingToServer('auditors',db.auditors);renderAdmin();}
 
 function renderAdminDist(el){
   el.innerHTML=`<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px;overflow:hidden">
@@ -4695,8 +4695,8 @@ function renderAdminDist(el){
   </div>`;
 }
 function addDistEmail(lid,t){openModal(`<div class="modal-title">E-Mail hinzufügen</div><div class="field-wrap"><label class="field-label">E-Mail-Adresse</label><input class="field-input" type="email" id="s5_d-email" placeholder="email@example.com"></div><button class="btn-primary" onclick="saveDistEmail(${lid},'${t}')">Hinzufügen</button>`);}
-function saveDistEmail(lid,t){const e=document.getElementById('s5_d-email').value.trim();if(!e)return;let d=db.distribution.find(x=>x.locationId===lid);if(!d){d={locationId:lid,fixed:[],dynamic:[]};db.distribution.push(d);}d[t].push(e);saveDB();closeModal();renderAdmin();}
-function removeDistEmail(lid,t,e){const d=db.distribution.find(x=>x.locationId===lid);if(d){d[t]=d[t].filter(x=>x!==e);saveDB();renderAdmin();}}
+function saveDistEmail(lid,t){const e=document.getElementById('s5_d-email').value.trim();if(!e)return;let d=db.distribution.find(x=>x.locationId===lid);if(!d){d={locationId:lid,fixed:[],dynamic:[]};db.distribution.push(d);}d[t].push(e);saveDB();saveSettingToServer('distribution',db.distribution);closeModal();renderAdmin();}
+function removeDistEmail(lid,t,e){const d=db.distribution.find(x=>x.locationId===lid);if(d){d[t]=d[t].filter(x=>x!==e);saveDB();saveSettingToServer('distribution',db.distribution);renderAdmin();}}
 
 /* ═══════════════════════════════════════════
    MODAL
