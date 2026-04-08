@@ -5223,141 +5223,152 @@ function tpmTaskImgClear() {
 function tpmGenerateAushang() {
   if (!tpmCurMachine) return;
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'l', unit:'mm', format:'a4' });
-  const W=297, H=210, ML=10, MR=10, MT=10;
+  const doc = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+  const W=210, H=297, ML=10, MR=10, MT=10;
   let y = MT;
 
   const m = tpmCurMachine;
   const tasks = tpmDB.tasks.filter(t=>t.machine_id===m.id);
   const intervalLabels = {taeglich:'Täglich',woechentlich:'Wöchentlich',monatlich:'Monatlich',jaehrlich:'Jährlich'};
   const shiftLabels    = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
-  const catColors = {Reinigung:[59,130,246],Wartung:[249,115,22],Hygiene:[139,92,246],Qualität:[5,150,105],Sicherheit:[220,38,38]};
+  const catColors = {Reinigung:[0,140,150],Wartung:[249,115,22],Hygiene:[139,92,246],Qualität:[5,150,105],Sicherheit:[220,38,38]};
 
-  // ── Header ──
-  doc.setFillColor(17,17,17); doc.rect(0,0,W,16,'F');
+  // ── Header (Teal) ──
+  doc.setFillColor(0,140,150); doc.rect(0,0,W,14,'F');
   doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-  doc.text('REINIGUNGSPLAN', ML, 10);
-  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
-  doc.text('Lean Plus · Aufgabenübersicht', W-MR, 10, {align:'right'});
-  y = 20;
+  doc.text('REINIGUNGSPLAN', ML, 9);
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(220,240,242);
+  doc.text('Lean Plus · Aufgabenübersicht', W-MR, 9, {align:'right'});
+  y = 18;
 
   // ── Machine info ──
-  doc.setFillColor(249,250,251); doc.roundedRect(ML,y,W-ML-MR,18,2,2,'F');
-  doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
-  doc.text(m.name, ML+4, y+8);
-  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
-  const metaParts = [m.area, m.location, m.ort, m.hersteller, m.technologie].filter(Boolean);
-  doc.text(metaParts.join('  ·  '), ML+4, y+14);
-  doc.setFontSize(8); doc.setTextColor(17,17,17);
-  doc.text(`KW: ${getKW(new Date())}  ·  Stand: ${new Date().toLocaleDateString('de-DE')}`, W-MR-4, y+11, {align:'right'});
-  y += 24;
+  doc.setFillColor(240,252,253); doc.roundedRect(ML,y,W-ML-MR,20,2,2,'F');
+  doc.setDrawColor(0,140,150); doc.setLineWidth(0.4);
+  doc.roundedRect(ML,y,W-ML-MR,20,2,2,'S');
 
-  // ── Tasks table header ──
-  const colW = {nr:10, img:28, title:60, desc:90, interval:18, shifts:22, tools:50};
-  const rowH = 24;
+  // Machine badge
+  doc.setFillColor(0,140,150); doc.roundedRect(ML+2,y+2,22,16,2,2,'F');
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.text(m.name.substring(0,6), ML+13, y+12, {align:'center'});
 
-  doc.setFillColor(30,30,30); doc.rect(ML,y,W-ML-MR,8,'F');
-  doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+  doc.text([m.area, m.location].filter(Boolean).join(' · ') || m.name, ML+28, y+8);
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+  doc.text([m.ort, m.hersteller, m.technologie].filter(Boolean).join('  ·  '), ML+28, y+14);
+  doc.setFontSize(7); doc.setTextColor(0,140,150);
+  doc.text(`KW ${getKW(new Date())}  ·  ${new Date().toLocaleDateString('de-DE')}`, W-MR-2, y+11, {align:'right'});
+  y += 26;
+
+  // ── Column widths for portrait ──
+  // Nr | Foto | Tätigkeit+Beschr | Intervall | Schicht | Hilfsmittel
+  const colNr   = 8;
+  const colImg  = 24;
+  const colTask = 68; // title+desc combined
+  const colInt  = 18;
+  const colShift= 18;
+  const colTool = W-ML-MR-colNr-colImg-colTask-colInt-colShift;
+  const rowH    = 26;
+
+  // Table header
+  doc.setFillColor(30,30,30); doc.rect(ML,y,W-ML-MR,7,'F');
+  doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
   let cx = ML+1;
-  [['Nr',colW.nr],['Objekt / Foto',colW.img],['Tätigkeit',colW.title],
-   ['Beschreibung / Sollzustand',colW.desc],['Intervall',colW.interval],
-   ['Schicht',colW.shifts],['Hilfsmittel',colW.tools]].forEach(([lbl,w]) => {
-    doc.text(lbl, cx+1, y+5.5); cx+=w;
-  });
-  y += 8;
+  [['Nr',colNr],['Foto',colImg],['Tätigkeit / Beschreibung',colTask],
+   ['Intervall',colInt],['Schicht',colShift],['Hilfsmittel',colTool]
+  ].forEach(([lbl,w]) => { doc.text(lbl, cx+1, y+5); cx+=w; });
+  y += 7;
 
-  // ── Group by category ──
+  // ── Tasks grouped by category ──
   const cats = [...new Set(tasks.map(t=>t.category||'Reinigung'))];
   cats.forEach(cat => {
     const catTasks = tasks.filter(t=>(t.category||'Reinigung')===cat);
     const rgb = catColors[cat]||[100,100,100];
 
     // Category header
-    doc.setFillColor(...rgb.map(c=>Math.round(c*0.15+220)));
-    doc.setDrawColor(...rgb);
-    doc.setLineWidth(0.3);
+    doc.setFillColor(...rgb.map(c=>Math.round(c*0.15+218)));
+    doc.setDrawColor(...rgb); doc.setLineWidth(0.3);
     doc.rect(ML,y,W-ML-MR,6,'FD');
-    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...rgb);
-    doc.text(cat, ML+3, y+4.2);
-    y+=6;
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...rgb);
+    doc.text(cat, ML+3, y+4.3);
+    y += 6;
 
     catTasks.forEach((task, idx) => {
-      const bg = idx%2===0 ? [255,255,255] : [249,250,251];
+      const bg = idx%2===0 ? [255,255,255] : [248,251,252];
       doc.setFillColor(...bg); doc.rect(ML,y,W-ML-MR,rowH,'F');
-      doc.setDrawColor(229,231,235); doc.setLineWidth(0.2);
+      doc.setDrawColor(220,228,230); doc.setLineWidth(0.15);
       doc.rect(ML,y,W-ML-MR,rowH,'S');
+      // left color strip
+      doc.setFillColor(...rgb); doc.rect(ML,y,1.5,rowH,'F');
 
-      cx = ML+1;
+      cx = ML+2;
+
       // Nr
-      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
-      doc.text(String(task.nr||idx+1), cx+colW.nr/2, y+rowH/2+1, {align:'center'}); cx+=colW.nr;
+      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(107,114,128);
+      doc.text(String(task.nr||idx+1), cx+colNr/2, y+rowH/2+1.5, {align:'center'}); cx+=colNr;
 
       // Foto
       if (task.image) {
-        try { doc.addImage(task.image,'JPEG',cx+1,y+1,colW.img-3,rowH-2,undefined,'FAST'); }
-        catch(e) { doc.setFontSize(6); doc.setTextColor(200,200,200); doc.text('(Foto)',cx+colW.img/2,y+rowH/2,{align:'center'}); }
+        try { doc.addImage(task.image,'JPEG',cx,y+1,colImg-2,rowH-2,undefined,'FAST'); }
+        catch(e) { doc.setFontSize(6); doc.setTextColor(200,200,200); doc.text('(Foto)',cx+colImg/2,y+rowH/2,{align:'center'}); }
       } else {
-        doc.setFontSize(6); doc.setTextColor(200,200,200);
-        doc.text('(kein Foto)', cx+colW.img/2, y+rowH/2+1, {align:'center'});
+        doc.setFontSize(6); doc.setTextColor(200,200,200); doc.text('(kein\nFoto)', cx+colImg/2, y+rowH/2-1, {align:'center'});
       }
-      cx+=colW.img;
+      cx+=colImg;
 
-      // Tätigkeit
-      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
-      const titleLines = doc.splitTextToSize(task.title, colW.title-3);
-      doc.text(titleLines.slice(0,2), cx+1, y+6);
-      cx+=colW.title;
-
-      // Beschreibung
-      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(55,65,81);
+      // Tätigkeit + Beschreibung
+      doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+      const titleLines = doc.splitTextToSize(task.title, colTask-3);
+      doc.text(titleLines.slice(0,1), cx+1, y+6);
       if (task.description) {
-        const descLines = doc.splitTextToSize(task.description, colW.desc-3);
-        doc.text(descLines.slice(0,3), cx+1, y+5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(55,65,81);
+        const descLines = doc.splitTextToSize(task.description, colTask-3);
+        doc.text(descLines.slice(0,3), cx+1, y+11);
       }
-      cx+=colW.desc;
+      cx+=colTask;
 
       // Intervall
-      doc.setFontSize(7); doc.setTextColor(17,17,17);
-      doc.text(intervalLabels[task.interval]||'–', cx+1, y+rowH/2+1); cx+=colW.interval;
+      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(0,140,150);
+      doc.text(intervalLabels[task.interval]||'–', cx+1, y+rowH/2+1); cx+=colInt;
 
       // Schichten
-      const shifts = (task.shifts||[]).map(s=>shiftLabels[s]||s).join('\n');
-      doc.text(shifts||'–', cx+1, y+6); cx+=colW.shifts;
+      const shifts = (task.shifts||[]).map(s=>shiftLabels[s]||s);
+      doc.setFontSize(6.5); doc.setTextColor(55,65,81);
+      shifts.slice(0,3).forEach((s,si)=>doc.text(s, cx+1, y+5+si*5));
+      cx+=colShift;
 
       // Hilfsmittel
       const tools = (task.tool_ids||[]).map(tid=>tpmDB.tools.find(t=>t.id===tid)).filter(Boolean);
       if (tools.length) {
-        doc.setFontSize(7);
         tools.slice(0,2).forEach((tool,ti) => {
           if (tool.image) {
-            try { doc.addImage(tool.image,'JPEG',cx+1,y+1+ti*11,10,10,undefined,'FAST'); }
+            try { doc.addImage(tool.image,'JPEG',cx,y+1+ti*12,10,10,undefined,'FAST'); }
             catch(e){}
           }
-          doc.text(tool.name.substring(0,18), cx+(tool.image?13:1), y+7+ti*11);
+          doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81);
+          doc.text(doc.splitTextToSize(tool.name,colTool-(tool.image?12:2))[0], cx+(tool.image?12:1), y+7+ti*12);
         });
       } else {
-        doc.setFontSize(7); doc.setTextColor(200,200,200); doc.text('–', cx+1, y+rowH/2+1);
+        doc.setFontSize(6); doc.setTextColor(200,200,200); doc.text('–', cx+1, y+rowH/2+1);
       }
 
-      y+=rowH;
+      y += rowH;
 
-      // New page if needed
-      if (y > H-20) {
+      // New page
+      if (y > H-22) {
         doc.addPage(); y=MT;
-        // Repeat header
-        doc.setFillColor(17,17,17); doc.rect(0,0,W,12,'F');
+        doc.setFillColor(0,140,150); doc.rect(0,0,W,10,'F');
         doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-        doc.text(`${m.name} · ${cat} (Fortsetzung)`, ML, 8);
-        y=16;
+        doc.text(`${m.name} · ${cat} (Fortsetzung)`, ML, 7);
+        y=14;
       }
     });
   });
 
   // Footer
-  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
-  doc.text(`Lean Plus · ${m.name} · Stand: ${new Date().toLocaleDateString('de-DE')}`, ML, H-4);
+  doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
+  doc.text(`Lean Plus · ${m.name} · Stand: ${new Date().toLocaleDateString('de-DE')}`, ML, H-5);
 
-  doc.save(`Reinigungsplan_${m.name.replace(/\s/g,'_')}.pdf`);
+  doc.save(`Reinigungsplan_${m.name.replace(/[\s/]/g,'_')}.pdf`);
 }
 
 /* ══ PDF: Abreißkalender ══ */
@@ -5448,8 +5459,8 @@ function tpmDoGenerateKalender() {
   document.getElementById('tpm-kw-dialog')?.remove();
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'l', unit:'mm', format:'a4' });
-  const W=297, H=210, ML=8, MR=8;
+  const doc = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+  const W=210, H=297, ML=8, MR=8;
   const m = tpmCurMachine;
   const allTasks = tpmDB.tasks.filter(t=>t.machine_id===m.id);
 
@@ -5539,17 +5550,21 @@ function tpmDoGenerateKalender() {
     // ══════════════════════════════════════
     // TASK TABLE
     // ══════════════════════════════════════
-    // Column widths
-    const nrW    = 8;
-    const intW   = 18;
-    const verantW= 22;
-    const taskW  = 55;
-    const bemW   = 30;
-    const usedW  = nrW+intW+verantW+taskW+bemW;
+    // Column widths — angepasst für Hochformat (210mm)
+    const nrW    = 6;
+    const intW   = 14;
+    const verantW= 16;
+    const taskW  = 40;
+    // Bemerkung bekommt den Platz der alten Unterschrift-Spalte
+    const unterschriftW = 0; // kein Unterschrift mehr pro Zeile
+    const usedW  = nrW+intW+verantW+taskW;
     const remW   = W-ML-MR-usedW;
-    // Day cols + Unterschrift
-    const unterschriftW = 10;
-    const dayW = (remW - unterschriftW) / 7;
+    // Day cols — volle Breite ohne Unterschrift-Spalte
+    const dayW = remW / 7;
+    // Bemerkung-Spalte extra (rechts der Tages-Spalten gibt es keine mehr — Bemerkung kommt VOR Tage)
+    const bemW = 22;
+    const dayTotalW = W-ML-MR-usedW-bemW;
+    const dayWf = dayTotalW / 7;
 
     // Column header row
     const hdrH = 8;
@@ -5560,10 +5575,8 @@ function tpmDoGenerateKalender() {
       doc.text(lbl, cx+w/2, y+5.5, {align:'center'}); cx+=w;
     });
     weekdays.forEach((day,di)=>{
-      doc.text(day.substring(0,2), cx+dayW/2, y+5.5, {align:'center'}); cx+=dayW;
+      doc.text(day.substring(0,2), cx+dayWf/2, y+5.5, {align:'center'}); cx+=dayWf;
     });
-    // Unterschrift header (rotated)
-    doc.text('Unterschrift', cx+unterschriftW/2, y+5.5, {align:'center'});
     y += hdrH;
 
     // ── Rows by category ──
@@ -5576,7 +5589,7 @@ function tpmDoGenerateKalender() {
     cats.forEach(cat => {
       const catTasks = tasks.filter(t=>(t.category||'Reinigung')===cat);
 
-      // Category row — teal-tinted
+      // Category row
       const catColors = {
         Reinigung:[0,140,150],Wartung:[180,80,20],Hygiene:[100,60,160],
         Qualität:[20,130,80],Sicherheit:[180,30,30]
@@ -5590,7 +5603,6 @@ function tpmDoGenerateKalender() {
       doc.text(cat, ML+3, y+4.3);
       y += 6;
 
-      // Sub-header for shifts
       catTasks.forEach((task, ti) => {
         const shifts = task.shifts&&task.shifts.length ? task.shifts : ['frueh'];
         const rowH   = Math.max(shifts.length*6+2, 8);
@@ -5601,6 +5613,7 @@ function tpmDoGenerateKalender() {
         doc.rect(ML, y, W-ML-MR, rowH, 'S');
 
         cx = ML;
+
         // Nr
         doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
         doc.text(String(task.nr||ti+1), cx+nrW/2, y+rowH/2+1, {align:'center'}); cx+=nrW;
@@ -5622,57 +5635,47 @@ function tpmDoGenerateKalender() {
         titleLines.slice(0,2).forEach((l,li)=>doc.text(l, cx+2, y+4+li*4));
         cx+=taskW;
 
-        // Bemerkung
-        doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
-        if (task.description) {
-          const descLines = doc.splitTextToSize(task.description, bemW-3);
-          descLines.slice(0,2).forEach((l,li)=>doc.text(l, cx+2, y+4+li*3.5));
-        }
+        // Bemerkung — freies Feld (leer zum Ausfüllen)
+        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.1);
+        doc.rect(cx, y, bemW, rowH, 'S');
         cx+=bemW;
 
         // Day cells — one per shift per day
         shifts.forEach((sh, si) => {
           const sy = y + si*6 + 1;
           weekdays.forEach((_, di)=>{
-            const dx = cx + di*dayW;
+            const dx = cx + di*dayWf;
             doc.setFillColor(252,252,252);
             doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
-            doc.rect(dx, sy, dayW, 5.5, 'FD');
+            doc.rect(dx, sy, dayWf, 5.5, 'FD');
           });
         });
-        cx += dayW*7;
-
-        // Unterschrift — full height vertical line
-        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
-        doc.rect(cx, y, unterschriftW, rowH, 'S');
 
         y += rowH;
 
         // New page if needed
-        if (y > H-28 && ti < catTasks.length-1) {
+        if (y > H-55 && ti < catTasks.length-1) {
           doc.addPage();
           y = 15;
-          // Continuation header
           doc.setFillColor(...TEAL); doc.rect(0,0,W,10,'F');
           doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
           doc.text(`${m.name} · KW ${kw}/${year} · ${cat} (Fortsetzung)`, ML+2, 7);
-          // Repeat column headers
           doc.setFillColor(...TEAL); doc.rect(ML,y,W-ML-MR,hdrH,'F');
           doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
           let cx2=ML;
           [['Nr',nrW],['Intervall',intW],['Verantwortlich',verantW],['Tätigkeit',taskW],['Bemerkung',bemW]].forEach(([l,w])=>{
             doc.text(l,cx2+w/2,y+5.5,{align:'center'}); cx2+=w;
           });
-          weekdays.forEach((_,di)=>{ doc.text(weekdays[di].substring(0,2),cx2+dayW/2,y+5.5,{align:'center'}); cx2+=dayW; });
+          weekdays.forEach((_,di)=>{ doc.text(weekdays[di].substring(0,2),cx2+dayWf/2,y+5.5,{align:'center'}); cx2+=dayWf; });
           y+=hdrH;
         }
       });
     });
 
     // ══════════════════════════════════════
-    // FOOTER — Signature + special rows
+    // FOOTER — Einmal-Unterschriftsblock unten
     // ══════════════════════════════════════
-    const footY = Math.max(y+3, H-28);
+    const footY = Math.max(y+4, H-42);
 
     // Glasvorfall row
     doc.setFillColor(...LGRAY); doc.rect(ML, footY, W-ML-MR, 6, 'F');
@@ -5686,25 +5689,44 @@ function tpmDoGenerateKalender() {
     doc.rect(ML, footY+7, W-ML-MR, 6, 'S');
     doc.text('Hygienevorfall (Name):', ML+3, footY+11);
 
-    // Unterschrift row
-    doc.setFillColor(...TEAL); doc.rect(ML, footY+14, W-ML-MR, 8, 'F');
-    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
-    doc.text('Schicht:', ML+3, footY+19);
-    // Day signature lines
-    let sx = ML+nrW+intW+verantW+taskW+bemW;
+    // ── Unterschrift-Block: Schichten × Wochentage ──
+    const sigY = footY + 14;
+    const sigShifts = ['frueh','spaet','nacht'];
+    const sigShiftH = 7;
+    const sigLabelW = nrW+intW+verantW+taskW+bemW; // same left offset as table
+    const sigDayW   = (W-ML-MR-sigLabelW) / 7;
+
+    // Header row
+    doc.setFillColor(...TEAL); doc.rect(ML, sigY, W-ML-MR, 7, 'F');
+    doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+    doc.text('durchgeführt von', ML+3, sigY+5);
     weekdays.forEach((day,di)=>{
-      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
-      doc.text(day.substring(0,2), sx+dayW/2, footY+19, {align:'center'});
-      sx+=dayW;
+      doc.text(day.substring(0,2), ML+sigLabelW+di*sigDayW+sigDayW/2, sigY+5, {align:'center'});
+    });
+
+    // Shift rows
+    sigShifts.forEach((sh,si)=>{
+      const sy = sigY+7+si*sigShiftH;
+      doc.setFillColor(...(si%2===0?WHITE:LGRAY)); doc.rect(ML, sy, W-ML-MR, sigShiftH, 'F');
+      doc.setDrawColor(...MGRAY); doc.setLineWidth(0.2);
+      doc.rect(ML, sy, W-ML-MR, sigShiftH, 'S');
+      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+      doc.text(shiftLabels[sh], ML+3, sy+sigShiftH-1.5);
+      // Day cells
+      weekdays.forEach((_,di)=>{
+        const dx = ML+sigLabelW+di*sigDayW;
+        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
+        doc.line(dx, sy, dx, sy+sigShiftH);
+      });
     });
 
     // Bottom info bar
     doc.setFillColor(245,247,249); doc.rect(0,H-5,W,5,'F');
     doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
     doc.text(`Lean Plus · ${m.name} · KW ${kw}/${year} · ${new Date().toLocaleDateString('de-DE')}`, ML, H-1.5);
-    const intLegend = [{l:'täglich',c:[59,130,246]},{l:'wöchentlich',c:[16,185,129]},{l:'monatlich',c:[245,158,11]},{l:'jährlich',c:[239,68,68]}];
-    let lx = W-MR-120;
-    intLegend.forEach(li=>{ doc.setFillColor(...li.c); doc.rect(lx,H-4.5,3,3,'F'); doc.setTextColor(107,114,128); doc.text(li.l,lx+4.5,H-1.5); lx+=32; });
+    const intLegend = [{l:'tägl.',c:[0,140,150]},{l:'wöch.',c:[16,185,129]},{l:'mtl.',c:[245,158,11]},{l:'jährl.',c:[239,68,68]}];
+    let lx = W-MR-80;
+    intLegend.forEach(li=>{ doc.setFillColor(...li.c); doc.rect(lx,H-4.5,3,3,'F'); doc.setTextColor(107,114,128); doc.text(li.l,lx+4.5,H-1.5); lx+=22; });
   }
 
   doc.save(`Reinigungsplan_KW${von}-${bis}_${year}_${m.name.replace(/[\s/]/g,'_')}.pdf`);
