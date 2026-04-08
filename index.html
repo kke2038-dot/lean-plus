@@ -1736,7 +1736,7 @@ body {
 // ── Supabase Konfiguration ──
 // NUR DEN KEY EINTRAGEN (einmalig in VS Code):
 const SUPA_URL = 'https://wyqmmiylrcrwinveiuor.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5cW1taXlscmNyd2ludmVpdW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ5MjMsImV4cCI6MjA5MDQ3MDkyM30.i3T74kOe996Njhm7UfuaJzlbyFeffcCSvD8Jk1mn51s'; // anon public key aus Supabase → Settings → API
+const SUPA_KEY = 'DEIN_ANON_PUBLIC_KEY'; // anon public key aus Supabase → Settings → API
 
 const supa = {
   async _req(method, path, body) {
@@ -5363,114 +5363,352 @@ function tpmGenerateAushang() {
 /* ══ PDF: Abreißkalender ══ */
 function tpmGenerateKalender() {
   if (!tpmCurMachine) return;
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'l', unit:'mm', format:'a4' });
-  const W=297, H=210, ML=10;
-  const m = tpmCurMachine;
-  const tasks = tpmDB.tasks.filter(t=>t.machine_id===m.id && t.interval==='taeglich');
-  const kw = getKW(new Date());
-  const year = new Date().getFullYear();
-  const weekdays = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
-  const shiftLabels = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
 
-  // ── Header ──
-  doc.setFillColor(17,17,17); doc.rect(0,0,W,14,'F');
-  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-  doc.text(`NACHWEIS REINIGUNG & WARTUNG`, ML, 9);
-  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
-  doc.text(`${m.name}  ·  KW ${kw}/${year}`, W-ML, 9, {align:'right'});
+  // ── Dialog für KW-Auswahl ──
+  const currentKW = getKW(new Date());
+  const currentYear = new Date().getFullYear();
 
-  let y = 18;
+  const existing = document.getElementById('tpm-kw-dialog');
+  if (existing) existing.remove();
 
-  // Machine info row
-  doc.setFillColor(249,250,251); doc.rect(ML,y,W-ML-ML,10,'F');
-  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
-  doc.text(`Maschine: ${m.name}`, ML+3, y+6);
-  doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
-  doc.text([m.area, m.location, m.ort].filter(Boolean).join(' · '), ML+60, y+6);
-  y += 14;
+  const dlg = document.createElement('div');
+  dlg.id = 'tpm-kw-dialog';
+  dlg.style.cssText = 'position:fixed;inset:0;z-index:9995;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';
+  dlg.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:28px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">Kalender drucken</div>
+      <div style="font-size:12px;color:#9ca3af;margin-bottom:20px">${tpmCurMachine.name}</div>
 
-  // ── Column layout ──
-  const taskColW = 70;
-  const dayW = (W - ML - ML - taskColW) / 7;
-  const shiftH = 7;
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">Von KW</label>
+          <input id="tpm-kw-von" type="number" min="1" max="53" value="${currentKW}"
+            class="field-input" style="text-align:center;font-size:16px;font-weight:700">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">Bis KW</label>
+          <input id="tpm-kw-bis" type="number" min="1" max="53" value="${Math.min(currentKW+3,53)}"
+            class="field-input" style="text-align:center;font-size:16px;font-weight:700">
+        </div>
+      </div>
 
-  // Day headers
-  doc.setFillColor(30,30,30); doc.rect(ML+taskColW, y, W-ML-ML-taskColW, 9,'F');
-  weekdays.forEach((day, di) => {
-    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text(day.substring(0,2), ML+taskColW+di*dayW+dayW/2, y+6, {align:'center'});
-  });
+      <div style="margin-bottom:18px">
+        <label style="font-size:11px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">Jahr</label>
+        <input id="tpm-kw-year" type="number" min="2024" max="2030" value="${currentYear}"
+          class="field-input" style="text-align:center">
+      </div>
 
-  // Task column header
-  doc.setFillColor(30,30,30); doc.rect(ML,y,taskColW,9,'F');
-  doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-  doc.text('Tätigkeit / Schicht', ML+3, y+6);
-  y+=9;
+      <div id="tpm-kw-preview" style="background:#f9fafb;border-radius:8px;padding:8px 12px;font-size:12px;color:#6b7280;margin-bottom:18px">
+        <span id="tpm-kw-info"></span>
+      </div>
 
-  // ── Task rows ──
-  if (!tasks.length) {
-    doc.setFontSize(10); doc.setTextColor(156,163,175);
-    doc.text('Keine täglichen Aufgaben für diese Maschine', W/2, H/2, {align:'center'});
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('tpm-kw-dialog').remove()"
+          style="flex:1;padding:10px;background:none;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px">
+          Abbrechen
+        </button>
+        <button onclick="tpmDoGenerateKalender()"
+          style="flex:2;padding:10px;background:#111;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500">
+          📅 PDF erstellen
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(dlg);
+
+  // Update preview
+  function updatePreview() {
+    const von  = parseInt(document.getElementById('tpm-kw-von')?.value)||1;
+    const bis  = parseInt(document.getElementById('tpm-kw-bis')?.value)||1;
+    const info = document.getElementById('tpm-kw-info');
+    if (!info) return;
+    const count = Math.max(0, bis - von + 1);
+    if (count <= 0) { info.textContent = '⚠️ Bis-KW muss größer als Von-KW sein'; return; }
+    if (count > 53) { info.textContent = '⚠️ Maximal 53 Wochen'; return; }
+    const allTasks = tpmDB.tasks.filter(t=>t.machine_id===tpmCurMachine.id);
+    const daily    = allTasks.filter(t=>t.interval==='taeglich').length;
+    const monthly  = allTasks.filter(t=>t.interval==='monatlich').length;
+    const yearly   = allTasks.filter(t=>t.interval==='jaehrlich').length;
+    info.innerHTML = `📄 <strong>${count} Seite${count!==1?'n':''}</strong> · ${daily} tägl. · ${monthly} monatl. · ${yearly} jährl. Aufgabe${allTasks.length!==1?'n':''}`;
   }
 
-  tasks.forEach((task, ti) => {
-    const shifts = task.shifts && task.shifts.length ? task.shifts : ['frueh','spaet'];
-    const rowH = shifts.length * shiftH + 2;
-    const bg = ti%2===0 ? [255,255,255] : [249,250,251];
+  ['tpm-kw-von','tpm-kw-bis','tpm-kw-year'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updatePreview);
+  });
+  updatePreview();
+}
 
-    doc.setFillColor(...bg); doc.rect(ML,y,W-ML-ML,rowH,'F');
-    doc.setDrawColor(229,231,235); doc.setLineWidth(0.2);
-    doc.rect(ML,y,W-ML-ML,rowH,'S');
+function tpmDoGenerateKalender() {
+  if (!tpmCurMachine) return;
+  const von  = parseInt(document.getElementById('tpm-kw-von')?.value)||1;
+  const bis  = parseInt(document.getElementById('tpm-kw-bis')?.value)||1;
+  const year = parseInt(document.getElementById('tpm-kw-year')?.value)||new Date().getFullYear();
 
-    // Task title
-    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
-    const titleLines = doc.splitTextToSize(task.title, taskColW-5);
-    doc.text(titleLines[0], ML+2, y+shiftH-1);
+  if (bis < von) { tpmToast('⚠️ Bis-KW muss größer als Von-KW sein'); return; }
+  document.getElementById('tpm-kw-dialog')?.remove();
 
-    // Shifts
-    shifts.forEach((shift, si) => {
-      const sy = y + si*shiftH + 2;
-      // Shift label
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'l', unit:'mm', format:'a4' });
+  const W=297, H=210, ML=8, MR=8;
+  const m = tpmCurMachine;
+  const allTasks = tpmDB.tasks.filter(t=>t.machine_id===m.id);
+
+  // Teal color (Glatfelter)
+  const TEAL  = [0,140,150];
+  const TEAL2 = [0,160,170];
+  const WHITE = [255,255,255];
+  const DARK  = [30,30,30];
+  const LGRAY = [240,242,244];
+  const MGRAY = [200,205,210];
+
+  const shiftLabels = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
+  const intervalLabels = {taeglich:'täglich',woechentlich:'wöchentlich',monatlich:'monatlich',jaehrlich:'jährlich'};
+  const weekdays = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+
+  function taskAppearsInWeek(task, kw) {
+    if (task.interval==='taeglich')     return true;
+    if (task.interval==='woechentlich') return true;
+    if (task.interval==='monatlich')    return ((kw-1)%4===0);
+    if (task.interval==='jaehrlich')    return kw===4;
+    return true;
+  }
+
+  let firstPage = true;
+
+  for (let kw = von; kw <= bis; kw++) {
+    if (!firstPage) doc.addPage();
+    firstPage = false;
+
+    const tasks = allTasks.filter(t => taskAppearsInWeek(t, kw));
+    const cats  = [...new Set(tasks.map(t=>t.category||'Reinigung'))];
+
+    // ══════════════════════════════════════
+    // HEADER — Teal top bar
+    // ══════════════════════════════════════
+    doc.setFillColor(...TEAL); doc.rect(0,0,W,12,'F');
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+    doc.text('LEAN PLUS', ML+2, 8);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text('Nachweis der Wartung und Reinigung', W/2, 8, {align:'center'});
+    doc.setFontSize(8);
+    doc.text(`Seite: KW ${kw}/${year}`, W-MR-2, 8, {align:'right'});
+
+    // ══════════════════════════════════════
+    // MACHINE INFO BOX
+    // ══════════════════════════════════════
+    let y = 13;
+
+    // Left: Machine badge
+    doc.setFillColor(...TEAL); doc.rect(ML, y, 26, 16, 'F');
+    doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+    doc.text(m.name, ML+13, y+9, {align:'center'});
+    doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.text('Maschine', ML+13, y+14, {align:'center'});
+
+    // KW badge
+    doc.setFillColor(...TEAL2); doc.rect(ML+27, y, 16, 16, 'F');
+    doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+    doc.text(String(kw), ML+35, y+9, {align:'center'});
+    doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.text('KW', ML+35, y+14, {align:'center'});
+
+    // Info fields
+    const infoX = ML+45;
+    doc.setFillColor(...LGRAY); doc.rect(infoX, y, W-ML-MR-45, 16, 'F');
+    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.3);
+    doc.rect(infoX, y, W-ML-MR-45, 16, 'S');
+
+    // Grid of info
+    const fields = [
+      ['Kst.', m.kst||'–'],['Hersteller', m.hersteller||'–'],
+      ['Ort',  m.ort||'–'], ['Technologie', m.technologie||'–'],
+      ['Bereich', m.area||'–'], ['Standort', m.location||'–'],
+    ];
+    const fw = (W-ML-MR-45)/3;
+    fields.forEach((f, fi) => {
+      const col = fi%3, row = Math.floor(fi/3);
+      const fx = infoX+col*fw+3, fy = y+3+row*7;
       doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
-      doc.text(shiftLabels[shift]||shift, ML+3, sy+4.5);
+      doc.text(f[0], fx, fy);
+      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+      doc.text(f[1], fx, fy+4);
+    });
 
-      // Vertical line between task and days
-      doc.setDrawColor(229,231,235); doc.setLineWidth(0.2);
-      doc.line(ML+taskColW, sy, ML+taskColW, sy+shiftH);
+    y += 20;
 
-      // Day cells
-      weekdays.forEach((_, di) => {
-        const dx = ML+taskColW+di*dayW;
-        // Cell border
-        doc.rect(dx, sy, dayW, shiftH);
-        // Checkbox area
-        doc.setFillColor(250,250,250); doc.rect(dx+2, sy+1.5, dayW-4, shiftH-3,'F');
+    // ══════════════════════════════════════
+    // TASK TABLE
+    // ══════════════════════════════════════
+    // Column widths
+    const nrW    = 8;
+    const intW   = 18;
+    const verantW= 22;
+    const taskW  = 55;
+    const bemW   = 30;
+    const usedW  = nrW+intW+verantW+taskW+bemW;
+    const remW   = W-ML-MR-usedW;
+    // Day cols + Unterschrift
+    const unterschriftW = 10;
+    const dayW = (remW - unterschriftW) / 7;
+
+    // Column header row
+    const hdrH = 8;
+    doc.setFillColor(...TEAL); doc.rect(ML, y, W-ML-MR, hdrH, 'F');
+    doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+    let cx = ML;
+    [['Nr',nrW],['Intervall',intW],['Verantwortlich',verantW],['Tätigkeit',taskW],['Bemerkung',bemW]].forEach(([lbl,w])=>{
+      doc.text(lbl, cx+w/2, y+5.5, {align:'center'}); cx+=w;
+    });
+    weekdays.forEach((day,di)=>{
+      doc.text(day.substring(0,2), cx+dayW/2, y+5.5, {align:'center'}); cx+=dayW;
+    });
+    // Unterschrift header (rotated)
+    doc.text('Unterschrift', cx+unterschriftW/2, y+5.5, {align:'center'});
+    y += hdrH;
+
+    // ── Rows by category ──
+    if (!tasks.length) {
+      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
+      doc.text('Keine Aufgaben für KW '+kw, W/2, y+15, {align:'center'});
+      y += 20;
+    }
+
+    cats.forEach(cat => {
+      const catTasks = tasks.filter(t=>(t.category||'Reinigung')===cat);
+
+      // Category row — teal-tinted
+      const catColors = {
+        Reinigung:[0,140,150],Wartung:[180,80,20],Hygiene:[100,60,160],
+        Qualität:[20,130,80],Sicherheit:[180,30,30]
+      };
+      const catRGB = catColors[cat]||TEAL;
+      doc.setFillColor(...catRGB.map(c=>Math.round(c*0.2+200)));
+      doc.rect(ML, y, W-ML-MR, 6, 'F');
+      doc.setDrawColor(...catRGB); doc.setLineWidth(0.3);
+      doc.rect(ML, y, W-ML-MR, 6, 'S');
+      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...catRGB);
+      doc.text(cat, ML+3, y+4.3);
+      y += 6;
+
+      // Sub-header for shifts
+      catTasks.forEach((task, ti) => {
+        const shifts = task.shifts&&task.shifts.length ? task.shifts : ['frueh'];
+        const rowH   = Math.max(shifts.length*6+2, 8);
+        const bg     = ti%2===0 ? WHITE : LGRAY;
+
+        doc.setFillColor(...bg); doc.rect(ML, y, W-ML-MR, rowH, 'F');
+        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
+        doc.rect(ML, y, W-ML-MR, rowH, 'S');
+
+        cx = ML;
+        // Nr
+        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+        doc.text(String(task.nr||ti+1), cx+nrW/2, y+rowH/2+1, {align:'center'}); cx+=nrW;
+
+        // Intervall
+        doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(...TEAL);
+        doc.text(intervalLabels[task.interval]||'–', cx+2, y+rowH/2+1); cx+=intW;
+
+        // Verantwortlich — shifts stacked
+        doc.setTextColor(55,65,81);
+        shifts.forEach((sh,si)=>{
+          doc.text(shiftLabels[sh]||sh, cx+2, y+4+si*6);
+        });
+        cx+=verantW;
+
+        // Tätigkeit
+        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+        const titleLines = doc.splitTextToSize(task.title, taskW-3);
+        titleLines.slice(0,2).forEach((l,li)=>doc.text(l, cx+2, y+4+li*4));
+        cx+=taskW;
+
+        // Bemerkung
+        doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+        if (task.description) {
+          const descLines = doc.splitTextToSize(task.description, bemW-3);
+          descLines.slice(0,2).forEach((l,li)=>doc.text(l, cx+2, y+4+li*3.5));
+        }
+        cx+=bemW;
+
+        // Day cells — one per shift per day
+        shifts.forEach((sh, si) => {
+          const sy = y + si*6 + 1;
+          weekdays.forEach((_, di)=>{
+            const dx = cx + di*dayW;
+            doc.setFillColor(252,252,252);
+            doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
+            doc.rect(dx, sy, dayW, 5.5, 'FD');
+          });
+        });
+        cx += dayW*7;
+
+        // Unterschrift — full height vertical line
+        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
+        doc.rect(cx, y, unterschriftW, rowH, 'S');
+
+        y += rowH;
+
+        // New page if needed
+        if (y > H-28 && ti < catTasks.length-1) {
+          doc.addPage();
+          y = 15;
+          // Continuation header
+          doc.setFillColor(...TEAL); doc.rect(0,0,W,10,'F');
+          doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+          doc.text(`${m.name} · KW ${kw}/${year} · ${cat} (Fortsetzung)`, ML+2, 7);
+          // Repeat column headers
+          doc.setFillColor(...TEAL); doc.rect(ML,y,W-ML-MR,hdrH,'F');
+          doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+          let cx2=ML;
+          [['Nr',nrW],['Intervall',intW],['Verantwortlich',verantW],['Tätigkeit',taskW],['Bemerkung',bemW]].forEach(([l,w])=>{
+            doc.text(l,cx2+w/2,y+5.5,{align:'center'}); cx2+=w;
+          });
+          weekdays.forEach((_,di)=>{ doc.text(weekdays[di].substring(0,2),cx2+dayW/2,y+5.5,{align:'center'}); cx2+=dayW; });
+          y+=hdrH;
+        }
       });
     });
 
-    y+=rowH;
-  });
+    // ══════════════════════════════════════
+    // FOOTER — Signature + special rows
+    // ══════════════════════════════════════
+    const footY = Math.max(y+3, H-28);
 
-  // ── Signature row ──
-  y+=4;
-  if (y < H-24) {
-    doc.setFillColor(249,250,251); doc.rect(ML,y,W-ML-ML,20,'F');
-    doc.setDrawColor(229,231,235); doc.setLineWidth(0.3);
-    doc.rect(ML,y,W-ML-ML,20,'S');
-    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
-    doc.text('Unterschrift Schichtleiter:', ML+3, y+7);
-    weekdays.forEach((_, di) => {
-      const dx = ML+taskColW+di*dayW;
-      doc.line(dx+2, y+15, dx+dayW-2, y+15);
+    // Glasvorfall row
+    doc.setFillColor(...LGRAY); doc.rect(ML, footY, W-ML-MR, 6, 'F');
+    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.2);
+    doc.rect(ML, footY, W-ML-MR, 6, 'S');
+    doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+    doc.text('Glasvorfall (Name):', ML+3, footY+4);
+
+    // Hygienevorfall row
+    doc.setFillColor(...LGRAY); doc.rect(ML, footY+7, W-ML-MR, 6, 'F');
+    doc.rect(ML, footY+7, W-ML-MR, 6, 'S');
+    doc.text('Hygienevorfall (Name):', ML+3, footY+11);
+
+    // Unterschrift row
+    doc.setFillColor(...TEAL); doc.rect(ML, footY+14, W-ML-MR, 8, 'F');
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+    doc.text('Schicht:', ML+3, footY+19);
+    // Day signature lines
+    let sx = ML+nrW+intW+verantW+taskW+bemW;
+    weekdays.forEach((day,di)=>{
+      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+      doc.text(day.substring(0,2), sx+dayW/2, footY+19, {align:'center'});
+      sx+=dayW;
     });
+
+    // Bottom info bar
+    doc.setFillColor(245,247,249); doc.rect(0,H-5,W,5,'F');
+    doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
+    doc.text(`Lean Plus · ${m.name} · KW ${kw}/${year} · ${new Date().toLocaleDateString('de-DE')}`, ML, H-1.5);
+    const intLegend = [{l:'täglich',c:[59,130,246]},{l:'wöchentlich',c:[16,185,129]},{l:'monatlich',c:[245,158,11]},{l:'jährlich',c:[239,68,68]}];
+    let lx = W-MR-120;
+    intLegend.forEach(li=>{ doc.setFillColor(...li.c); doc.rect(lx,H-4.5,3,3,'F'); doc.setTextColor(107,114,128); doc.text(li.l,lx+4.5,H-1.5); lx+=32; });
   }
 
-  // Footer
-  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(156,163,175);
-  doc.text(`Lean Plus · ${m.name} · KW ${kw}/${year} · Täglich drucken`, ML, H-4);
-
-  doc.save(`Kalender_KW${kw}_${m.name.replace(/\s/g,'_')}.pdf`);
+  doc.save(`Reinigungsplan_KW${von}-${bis}_${year}_${m.name.replace(/[\s/]/g,'_')}.pdf`);
+  tpmToast(`✅ ${bis-von+1} Seite${bis-von+1!==1?'n':''} erstellt`);
 }
 
 function getKW(date) {
