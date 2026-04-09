@@ -6,6 +6,7 @@
 <title>Lean Plus</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* ═══════════════════════════════════
    LANDING PAGE & APP SHELL
@@ -1561,6 +1562,7 @@ body {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-sm blue" onclick="tpmGenerateAushang()">📄 Aushang PDF</button>
           <button class="btn-sm" onclick="tpmGenerateKalender()">📅 Kalender PDF</button>
+          <button class="btn-sm" onclick="tpmGenerateSchild()" style="background:#7c3aed;color:#fff;border-color:#7c3aed">🏷️ Schild PDF</button>
         </div>
       </div>
 
@@ -1726,6 +1728,42 @@ body {
 </div><!-- /pane-tpm -->
 
 <!-- ═══════════════════════════════════
+     MOBILER ABARBEITUNGS-SCREEN (QR-Scan)
+═══════════════════════════════════ -->
+<div id="tpm-scan-screen" style="display:none;position:fixed;inset:0;z-index:9980;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;overflow-y:auto">
+
+  <!-- Header -->
+  <div id="tpm-scan-header" style="background:#008C96;padding:16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
+    <button onclick="tpmCloseScanScreen()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;flex-shrink:0">←</button>
+    <div style="flex:1">
+      <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em">Reinigung & Wartung</div>
+      <div id="tpm-scan-machine-name" style="font-size:18px;font-weight:700;color:#fff"></div>
+      <div id="tpm-scan-meta" style="font-size:12px;color:rgba(255,255,255,.8)"></div>
+    </div>
+    <div id="tpm-scan-progress-ring" style="text-align:center">
+      <div id="tpm-scan-progress-pct" style="font-size:22px;font-weight:800;color:#fff">0%</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.7)">erledigt</div>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div style="height:4px;background:rgba(0,0,0,.1)">
+    <div id="tpm-scan-progress-bar" style="height:100%;background:#fff;width:0%;transition:width .4s"></div>
+  </div>
+
+  <!-- Task list -->
+  <div id="tpm-scan-tasks" style="padding:12px;display:flex;flex-direction:column;gap:10px"></div>
+
+  <!-- Done summary -->
+  <div id="tpm-scan-done-banner" style="display:none;margin:16px;padding:20px;background:#fff;border-radius:14px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+    <div style="font-size:48px;margin-bottom:8px">✅</div>
+    <div style="font-size:18px;font-weight:700;color:#059669;margin-bottom:4px">Alle Aufgaben erledigt!</div>
+    <div id="tpm-scan-done-sub" style="font-size:13px;color:#6b7280"></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════
      JAVASCRIPT
 ═══════════════════════════════════ -->
 <script>
@@ -1863,6 +1901,10 @@ async function deleteTSAFromServer(id) {
 
 /* ─── Initialisierung ─── */
 async function initApp() {
+  // QR-Scan Parameter prüfen
+  const params = new URLSearchParams(location.search);
+  const qrMachineId = params.get('scan');
+
   if (!SUPA_URL || SUPA_URL === 'DEINE_SUPABASE_URL') {
     console.warn('⚠️ Supabase nicht konfiguriert — nutze localStorage');
     db = loadDB();
@@ -1879,6 +1921,12 @@ async function initApp() {
     showLoadingOverlay(false);
     renderLanding();
     updateLandingBadges();
+    // QR-Scan nach dem Laden öffnen
+    if (qrMachineId) {
+      sessionStorage.setItem('lp_auth_v2','1');
+      await tpmLoad();
+      tpmOpenScanScreen(qrMachineId);
+    }
   } catch(e) {
     showLoadingOverlay(false);
     console.error('❌ Supabase Fehler:', e);
@@ -1920,7 +1968,7 @@ function showPane(pane) {
   updateLandingBadges();
   if (pane === 'landing') renderLanding();
   if (pane === '5s')  { s5ShowSection('audits'); }
-  if (pane === 'tpm') { tpmLoad().then(() => tpmShowSection('overview')); }
+  if (pane === 'tpm') { tpmLoad().then(() => { tpmShowSection('overview'); tpmCheckQRParam(); }); }
 }
 
 /* ─── LANDING ─── */
@@ -4869,29 +4917,43 @@ function tpmRenderOverview() {
 
   grid.innerHTML = filtered.map(m => {
     const taskCount = tpmDB.tasks.filter(t=>t.machine_id===m.id).length;
-    const catBg = {'Reinigung':'#dbeafe','Wartung':'#ffedd5','Hygiene':'#ede9fe','Qualität':'#d1fae5','Sicherheit':'#fee2e2'};
     const cats = [...new Set(tpmDB.tasks.filter(t=>t.machine_id===m.id).map(t=>t.category))];
+    const status = tpmGetMachineStatus(m.id);
+    const statusColor = {red:'#dc2626',yellow:'#d97706',green:'#059669',none:'#9ca3af'}[status];
+    const statusLabel = {red:'Offen',yellow:'Teilweise',green:'Erledigt',none:'–'}[status];
+    const kw = getKW(new Date());
+    const doneLogs = tpmDB.logs.filter(l=>l.machine_id===m.id&&l.kw===kw&&l.year===new Date().getFullYear()&&l.done).length;
 
-    return `<div class="tpm-machine-card" onclick="tpmOpenMachine('${m.id}')">
-      <div class="tpm-machine-img-wrap">
-        ${m.image ? `<img src="${m.image}" alt="${m.name}">` : '🏭'}
+    return `<div class="tpm-machine-card">
+      <div onclick="tpmOpenMachine('${m.id}')" style="cursor:pointer">
+        <div class="tpm-machine-img-wrap" style="position:relative">
+          ${m.image ? `<img src="${m.image}" alt="${m.name}">` : '🏭'}
+          <div style="position:absolute;top:8px;right:8px;background:${statusColor};color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;display:flex;align-items:center;gap:4px">
+            <span style="width:6px;height:6px;border-radius:50%;background:#fff;display:inline-block"></span>
+            KW ${kw}: ${statusLabel}
+          </div>
+        </div>
+        <div class="tpm-machine-body">
+          <div class="tpm-machine-name">${m.name}</div>
+          <div class="tpm-machine-meta">${[m.area, m.location, m.ort].filter(Boolean).join(' · ')}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+            ${cats.map(c=>`<span class="tpm-cat-badge tpm-cat-${c}">${c}</span>`).join('')}
+          </div>
+          <div class="tpm-machine-stats">
+            <div class="tpm-machine-stat">
+              <div class="tpm-machine-stat-val">${taskCount}</div>
+              <div class="tpm-machine-stat-lbl">Aufgaben</div>
+            </div>
+            <div class="tpm-machine-stat">
+              <div class="tpm-machine-stat-val" style="color:${statusColor}">${doneLogs}</div>
+              <div class="tpm-machine-stat-lbl">Erledigt</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="tpm-machine-body">
-        <div class="tpm-machine-name">${m.name}</div>
-        <div class="tpm-machine-meta">${[m.area, m.location, m.ort].filter(Boolean).join(' · ')}</div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
-          ${cats.map(c=>`<span class="tpm-cat-badge tpm-cat-${c}">${c}</span>`).join('')}
-        </div>
-        <div class="tpm-machine-stats">
-          <div class="tpm-machine-stat">
-            <div class="tpm-machine-stat-val">${taskCount}</div>
-            <div class="tpm-machine-stat-lbl">Aufgaben</div>
-          </div>
-          <div class="tpm-machine-stat">
-            <div class="tpm-machine-stat-val" style="color:#059669">${tpmDB.tasks.filter(t=>t.machine_id===m.id&&t.interval==='taeglich').length}</div>
-            <div class="tpm-machine-stat-lbl">Täglich</div>
-          </div>
-        </div>
+      <div style="padding:0 12px 12px;display:flex;gap:8px">
+        <button onclick="tpmOpenMachine('${m.id}')" class="btn-sm" style="flex:1">📋 Plan</button>
+        <button onclick="tpmLoad().then(()=>tpmOpenScanScreen('${m.id}'))" style="flex:1;padding:6px 10px;background:#008C96;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">📱 Abarbeiten</button>
       </div>
     </div>`;
   }).join('');
@@ -4963,7 +5025,10 @@ function tpmRenderTasksList() {
                   ${shifts ? `<span style="font-size:11px;background:#f3f4f6;padding:2px 7px;border-radius:5px;color:#374151">👤 ${shifts}</span>` : ''}
                 </div>
               </div>
-              <button onclick="tpmDeleteTask('${task.id}')" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px;flex-shrink:0" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#d1d5db'" title="Löschen">✕</button>
+              <div style="display:flex;gap:4px;flex-shrink:0">
+                <button onclick="tpmEditTask('${task.id}')" style="background:none;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;color:#6b7280;font-size:13px;padding:3px 8px" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#6b7280'" title="Bearbeiten">✏️</button>
+                <button onclick="tpmDeleteTask('${task.id}')" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px;flex-shrink:0" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#d1d5db'" title="Löschen">✕</button>
+              </div>
             </div>
             ${taskTools.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid #f3f4f6;padding-top:8px">
               <span style="font-size:11px;color:#9ca3af;align-self:center">Hilfsmittel:</span>
@@ -5034,6 +5099,155 @@ async function tpmDeleteTask(id) {
     tpmDB.tasks = tpmDB.tasks.filter(t=>t.id!==id);
     tpmRenderTasksList();
     tpmToast('Aufgabe gelöscht');
+  }
+}
+
+function tpmEditTask(id) {
+  const task = tpmDB.tasks.find(t=>t.id===id);
+  if (!task) return;
+
+  const shiftLabels = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
+  const intervalOptions = ['taeglich','woechentlich','monatlich','jaehrlich'];
+  const intervalLabels  = {taeglich:'Täglich',woechentlich:'Wöchentlich',monatlich:'Monatlich',jaehrlich:'Jährlich'};
+  const categories = ['Reinigung','Wartung','Hygiene','Qualität','Sicherheit'];
+
+  const existing = document.getElementById('tpm-edit-dialog');
+  if (existing) existing.remove();
+
+  const dlg = document.createElement('div');
+  dlg.id = 'tpm-edit-dialog';
+  dlg.style.cssText = 'position:fixed;inset:0;z-index:9995;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:16px';
+
+  dlg.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:16px">Aufgabe bearbeiten</div>
+
+      <div class="field-wrap">
+        <label class="field-label">Kategorie</label>
+        <select class="field-input" id="edit-task-category">
+          ${categories.map(c=>`<option value="${c}" ${task.category===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="field-wrap">
+        <label class="field-label">Tätigkeit <span class="req">*</span></label>
+        <input class="field-input" id="edit-task-title" value="${task.title||''}">
+      </div>
+
+      <div class="field-wrap">
+        <label class="field-label">Beschreibung / Sollzustand</label>
+        <textarea class="field-input" id="edit-task-desc" rows="3" style="resize:vertical">${task.description||''}</textarea>
+      </div>
+
+      <div class="field-wrap">
+        <label class="field-label">Intervall</label>
+        <select class="field-input" id="edit-task-interval">
+          ${intervalOptions.map(v=>`<option value="${v}" ${task.interval===v?'selected':''}>${intervalLabels[v]}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="field-wrap">
+        <label class="field-label">Schichten</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+          ${['frueh','normal','spaet','nacht'].map(s=>`
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+              <input type="checkbox" class="edit-shift-check" value="${s}" ${(task.shifts||[]).includes(s)?'checked':''}>
+              ${shiftLabels[s]}
+            </label>`).join('')}
+        </div>
+      </div>
+
+      <div class="field-wrap">
+        <label class="field-label">Hilfsmittel</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+          ${tpmDB.tools.map(tool=>`
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px">
+              <input type="checkbox" class="edit-tool-check" value="${tool.id}" ${(task.tool_ids||[]).includes(tool.id)?'checked':''}>
+              ${tool.image?`<img src="${tool.image}" style="width:18px;height:18px;object-fit:cover;border-radius:3px">`:''}
+              ${tool.name}
+            </label>`).join('') || '<span style="color:#9ca3af;font-size:12px">Keine Hilfsmittel</span>'}
+        </div>
+      </div>
+
+      <div class="field-wrap">
+        <label class="field-label">Foto</label>
+        <input type="file" id="edit-task-img-input" accept="image/*" style="display:none" onchange="tpmEditImgSelected(event)">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <button class="btn-sm" onclick="document.getElementById('edit-task-img-input').click()">📷 Foto ändern</button>
+          <span id="edit-task-img-wrap" style="${task.image?'':'display:none'};position:relative">
+            <img id="edit-task-img-preview" src="${task.image||''}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
+            <button onclick="tpmEditImgClear()" style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>
+          </span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="document.getElementById('tpm-edit-dialog').remove()"
+          style="flex:1;padding:11px;background:none;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px">
+          Abbrechen
+        </button>
+        <button onclick="tpmUpdateTask('${id}')"
+          style="flex:2;padding:11px;background:#111;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500">
+          ✅ Speichern
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(dlg);
+  // Store current image
+  window._tpmEditImg = task.image || null;
+}
+
+function tpmEditImgSelected(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => compressImage(ev.target.result, 800, 0.72, compressed => {
+    window._tpmEditImg = compressed;
+    const img  = document.getElementById('edit-task-img-preview');
+    const wrap = document.getElementById('edit-task-img-wrap');
+    if (img)  img.src = compressed;
+    if (wrap) wrap.style.display = 'inline-block';
+  });
+  r.readAsDataURL(f); e.target.value='';
+}
+
+function tpmEditImgClear() {
+  window._tpmEditImg = null;
+  const wrap = document.getElementById('edit-task-img-wrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+async function tpmUpdateTask(id) {
+  const title = document.getElementById('edit-task-title')?.value.trim();
+  if (!title) { tpmToast('Bitte Tätigkeit eingeben'); return; }
+
+  const shifts  = [...document.querySelectorAll('.edit-shift-check:checked')].map(c=>c.value);
+  const toolIds = [...document.querySelectorAll('.edit-tool-check:checked')].map(c=>c.value);
+
+  const updated = {
+    id,
+    machine_id:  tpmCurMachine.id,
+    category:    document.getElementById('edit-task-category')?.value || 'Reinigung',
+    title,
+    description: document.getElementById('edit-task-desc')?.value.trim() || '',
+    interval:    document.getElementById('edit-task-interval')?.value || 'taeglich',
+    shifts,
+    tool_ids:    toolIds,
+    image:       window._tpmEditImg || null,
+    active:      true,
+  };
+
+  // Preserve nr
+  const existing = tpmDB.tasks.find(t=>t.id===id);
+  if (existing) updated.nr = existing.nr;
+
+  const ok = await tpmSaveRecord('tpm_tasks', updated);
+  if (ok) {
+    const idx = tpmDB.tasks.findIndex(t=>t.id===id);
+    if (idx>=0) tpmDB.tasks[idx] = { ...tpmDB.tasks[idx], ...updated };
+    document.getElementById('tpm-edit-dialog')?.remove();
+    tpmRenderTasksList();
+    tpmToast('✅ Aufgabe aktualisiert');
   }
 }
 
@@ -5256,18 +5470,17 @@ function tpmGenerateAushang() {
   doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
   doc.text([m.ort, m.hersteller, m.technologie].filter(Boolean).join('  ·  '), ML+28, y+14);
   doc.setFontSize(7); doc.setTextColor(0,140,150);
-  doc.text(`KW ${getKW(new Date())}  ·  ${new Date().toLocaleDateString('de-DE')}`, W-MR-2, y+11, {align:'right'});
+  doc.text(`Druckdatum: ${new Date().toLocaleDateString('de-DE')}`, W-MR-2, y+11, {align:'right'});
   y += 26;
 
   // ── Column widths for portrait ──
-  // Nr | Foto | Tätigkeit+Beschr | Intervall | Schicht | Hilfsmittel
   const colNr   = 8;
   const colImg  = 24;
-  const colTask = 68; // title+desc combined
+  const colTask = 68;
   const colInt  = 18;
   const colShift= 18;
   const colTool = W-ML-MR-colNr-colImg-colTask-colInt-colShift;
-  const rowH    = 26;
+  const rowH    = 32; // größer für mehr Beschreibungstext
 
   // Table header
   doc.setFillColor(30,30,30); doc.rect(ML,y,W-ML-MR,7,'F');
@@ -5315,19 +5528,19 @@ function tpmGenerateAushang() {
       }
       cx+=colImg;
 
-      // Tätigkeit + Beschreibung
-      doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
+      // Tätigkeit + Beschreibung — größere Schrift
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
       const titleLines = doc.splitTextToSize(task.title, colTask-3);
-      doc.text(titleLines.slice(0,1), cx+1, y+6);
+      doc.text(titleLines.slice(0,1), cx+1, y+7);
       if (task.description) {
-        doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(55,65,81);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(55,65,81);
         const descLines = doc.splitTextToSize(task.description, colTask-3);
-        doc.text(descLines.slice(0,3), cx+1, y+11);
+        doc.text(descLines.slice(0,3), cx+1, y+13);
       }
       cx+=colTask;
 
       // Intervall
-      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(0,140,150);
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(0,140,150);
       doc.text(intervalLabels[task.interval]||'–', cx+1, y+rowH/2+1); cx+=colInt;
 
       // Schichten
@@ -5554,29 +5767,25 @@ function tpmDoGenerateKalender() {
     const nrW    = 6;
     const intW   = 14;
     const verantW= 16;
-    const taskW  = 40;
-    // Bemerkung bekommt den Platz der alten Unterschrift-Spalte
-    const unterschriftW = 0; // kein Unterschrift mehr pro Zeile
+    const taskW  = 44;
     const usedW  = nrW+intW+verantW+taskW;
-    const remW   = W-ML-MR-usedW;
-    // Day cols — volle Breite ohne Unterschrift-Spalte
-    const dayW = remW / 7;
-    // Bemerkung-Spalte extra (rechts der Tages-Spalten gibt es keine mehr — Bemerkung kommt VOR Tage)
-    const bemW = 22;
+    // Bemerkung kommt NACH den Tagesspalten ganz rechts
+    const bemW   = 24;
     const dayTotalW = W-ML-MR-usedW-bemW;
-    const dayWf = dayTotalW / 7;
+    const dayWf  = dayTotalW / 7;
 
     // Column header row
     const hdrH = 8;
     doc.setFillColor(...TEAL); doc.rect(ML, y, W-ML-MR, hdrH, 'F');
     doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
     let cx = ML;
-    [['Nr',nrW],['Intervall',intW],['Verantwortlich',verantW],['Tätigkeit',taskW],['Bemerkung',bemW]].forEach(([lbl,w])=>{
+    [['Nr',nrW],['Intervall',intW],['Verantwortlich',verantW],['Tätigkeit',taskW]].forEach(([lbl,w])=>{
       doc.text(lbl, cx+w/2, y+5.5, {align:'center'}); cx+=w;
     });
     weekdays.forEach((day,di)=>{
       doc.text(day.substring(0,2), cx+dayWf/2, y+5.5, {align:'center'}); cx+=dayWf;
     });
+    doc.text('Bemerkung', cx+bemW/2, y+5.5, {align:'center'});
     y += hdrH;
 
     // ── Rows by category ──
@@ -5605,7 +5814,7 @@ function tpmDoGenerateKalender() {
 
       catTasks.forEach((task, ti) => {
         const shifts = task.shifts&&task.shifts.length ? task.shifts : ['frueh'];
-        const rowH   = Math.max(shifts.length*6+2, 8);
+        const rowH   = Math.max(shifts.length*7+3, 10);
         const bg     = ti%2===0 ? WHITE : LGRAY;
 
         doc.setFillColor(...bg); doc.rect(ML, y, W-ML-MR, rowH, 'F');
@@ -5616,40 +5825,38 @@ function tpmDoGenerateKalender() {
 
         // Nr
         doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
-        doc.text(String(task.nr||ti+1), cx+nrW/2, y+rowH/2+1, {align:'center'}); cx+=nrW;
+        doc.text(String(task.nr||ti+1), cx+nrW/2, y+rowH/2+1.5, {align:'center'}); cx+=nrW;
 
         // Intervall
         doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(...TEAL);
-        doc.text(intervalLabels[task.interval]||'–', cx+2, y+rowH/2+1); cx+=intW;
+        doc.text(intervalLabels[task.interval]||'–', cx+1, y+rowH/2+1.5); cx+=intW;
 
         // Verantwortlich — shifts stacked
         doc.setTextColor(55,65,81);
         shifts.forEach((sh,si)=>{
-          doc.text(shiftLabels[sh]||sh, cx+2, y+4+si*6);
+          doc.text(shiftLabels[sh]||sh, cx+1, y+5+si*7);
         });
         cx+=verantW;
 
         // Tätigkeit
         doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
         const titleLines = doc.splitTextToSize(task.title, taskW-3);
-        titleLines.slice(0,2).forEach((l,li)=>doc.text(l, cx+2, y+4+li*4));
+        titleLines.slice(0,2).forEach((l,li)=>doc.text(l, cx+1, y+5+li*4.5));
         cx+=taskW;
 
-        // Bemerkung — freies Feld (leer zum Ausfüllen)
-        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.1);
-        doc.rect(cx, y, bemW, rowH, 'S');
-        cx+=bemW;
-
-        // Day cells — one per shift per day
-        shifts.forEach((sh, si) => {
-          const sy = y + si*6 + 1;
-          weekdays.forEach((_, di)=>{
-            const dx = cx + di*dayWf;
-            doc.setFillColor(252,252,252);
-            doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
-            doc.rect(dx, sy, dayWf, 5.5, 'FD');
-          });
+        // Day cells — volle Zeilenhöhe, eine Zelle pro Tag
+        weekdays.forEach((_, di)=>{
+          const dx = cx + di*dayWf;
+          doc.setFillColor(252,252,252);
+          doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
+          doc.rect(dx, y, dayWf, rowH, 'FD');
         });
+        cx += dayWf*7;
+
+        // Bemerkung — großes freies Feld
+        doc.setFillColor(255,255,255);
+        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
+        doc.rect(cx, y, bemW, rowH, 'FD');
 
         y += rowH;
 
@@ -5663,19 +5870,20 @@ function tpmDoGenerateKalender() {
           doc.setFillColor(...TEAL); doc.rect(ML,y,W-ML-MR,hdrH,'F');
           doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
           let cx2=ML;
-          [['Nr',nrW],['Intervall',intW],['Verantwortlich',verantW],['Tätigkeit',taskW],['Bemerkung',bemW]].forEach(([l,w])=>{
+          [['Nr',nrW],['Intervall',intW],['Verantwortlich',verantW],['Tätigkeit',taskW]].forEach(([l,w])=>{
             doc.text(l,cx2+w/2,y+5.5,{align:'center'}); cx2+=w;
           });
           weekdays.forEach((_,di)=>{ doc.text(weekdays[di].substring(0,2),cx2+dayWf/2,y+5.5,{align:'center'}); cx2+=dayWf; });
+          doc.text('Bemerkung', cx2+bemW/2, y+5.5, {align:'center'});
           y+=hdrH;
         }
       });
     });
 
     // ══════════════════════════════════════
-    // FOOTER — Einmal-Unterschriftsblock unten
+    // FOOTER — Einfacher Unterschriftsblock unten (nur Tage, keine Schichten)
     // ══════════════════════════════════════
-    const footY = Math.max(y+4, H-42);
+    const footY = Math.max(y+4, H-38);
 
     // Glasvorfall row
     doc.setFillColor(...LGRAY); doc.rect(ML, footY, W-ML-MR, 6, 'F');
@@ -5689,35 +5897,28 @@ function tpmDoGenerateKalender() {
     doc.rect(ML, footY+7, W-ML-MR, 6, 'S');
     doc.text('Hygienevorfall (Name):', ML+3, footY+11);
 
-    // ── Unterschrift-Block: Schichten × Wochentage ──
-    const sigY = footY + 14;
-    const sigShifts = ['frueh','spaet','nacht'];
-    const sigShiftH = 7;
-    const sigLabelW = nrW+intW+verantW+taskW+bemW; // same left offset as table
+    // ── Unterschriftsblock: nur Wochentage, eine große Zeile ──
+    const sigY   = footY + 14;
+    const sigH   = 14; // großzügige Höhe für Unterschrift
+    const sigLabelW = usedW; // bündig mit linker Tabellenspalte
     const sigDayW   = (W-ML-MR-sigLabelW) / 7;
 
-    // Header row
+    // Header
     doc.setFillColor(...TEAL); doc.rect(ML, sigY, W-ML-MR, 7, 'F');
     doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
-    doc.text('durchgeführt von', ML+3, sigY+5);
+    doc.text('Unterschrift', ML+3, sigY+5);
     weekdays.forEach((day,di)=>{
       doc.text(day.substring(0,2), ML+sigLabelW+di*sigDayW+sigDayW/2, sigY+5, {align:'center'});
     });
 
-    // Shift rows
-    sigShifts.forEach((sh,si)=>{
-      const sy = sigY+7+si*sigShiftH;
-      doc.setFillColor(...(si%2===0?WHITE:LGRAY)); doc.rect(ML, sy, W-ML-MR, sigShiftH, 'F');
-      doc.setDrawColor(...MGRAY); doc.setLineWidth(0.2);
-      doc.rect(ML, sy, W-ML-MR, sigShiftH, 'S');
-      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
-      doc.text(shiftLabels[sh], ML+3, sy+sigShiftH-1.5);
-      // Day cells
-      weekdays.forEach((_,di)=>{
-        const dx = ML+sigLabelW+di*sigDayW;
-        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.15);
-        doc.line(dx, sy, dx, sy+sigShiftH);
-      });
+    // Eine große Unterschriftszeile
+    doc.setFillColor(...WHITE); doc.rect(ML, sigY+7, W-ML-MR, sigH, 'F');
+    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.2);
+    doc.rect(ML, sigY+7, W-ML-MR, sigH, 'S');
+    // Vertikale Trennlinien zwischen Tagen
+    weekdays.forEach((_,di)=>{
+      const dx = ML+sigLabelW+di*sigDayW;
+      doc.line(dx, sigY+7, dx, sigY+7+sigH);
     });
 
     // Bottom info bar
@@ -5739,10 +5940,372 @@ function getKW(date) {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
   return Math.ceil((((d-yearStart)/86400000)+1)/7);
 }
-</script>
-<!-- ═══════════════════════════════════
-     PASSWORTSCHUTZ
-═══════════════════════════════════ -->
+
+/* ═══════════════════════════════════════════════════
+   🏷️  MASCHINENSCHILD PDF mit QR-Code
+═══════════════════════════════════════════════════ */
+async function tpmGenerateSchild() {
+  if (!tpmCurMachine) return;
+  const m = tpmCurMachine;
+
+  // Build scan URL
+  const scanURL = `${location.origin}${location.pathname}?scan=${m.id}`;
+
+  // Generate QR as canvas via QRCode.js
+  const qrDiv = document.createElement('div');
+  qrDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+  document.body.appendChild(qrDiv);
+
+  await new Promise((resolve) => {
+    new QRCode(qrDiv, {
+      text: scanURL, width: 200, height: 200,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    setTimeout(resolve, 300);
+  });
+
+  const qrCanvas = qrDiv.querySelector('canvas');
+  const qrDataURL = qrCanvas ? qrCanvas.toDataURL('image/png') : null;
+  document.body.removeChild(qrDiv);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+  const W=210, H=297, ML=15, MR=15;
+
+  const TEAL  = [0,140,150];
+  const WHITE = [255,255,255];
+  const DARK  = [20,20,20];
+
+  // ── Teal header band ──
+  doc.setFillColor(...TEAL); doc.rect(0,0,W,45,'F');
+
+  // Company / App name
+  doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(...WHITE);
+  doc.setFillColor(255,255,255,0.2);
+  doc.text('LEAN PLUS', ML, 14);
+  doc.setFontSize(9); doc.setTextColor(200,240,242);
+  doc.text('Reinigung & Wartung', ML, 20);
+
+  // Machine name BIG
+  doc.setFontSize(36); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+  const nameLines = doc.splitTextToSize(m.name, W-ML-MR);
+  doc.text(nameLines.slice(0,2), ML, 36);
+
+  let y = 58;
+
+  // ── Info box ──
+  doc.setFillColor(245,250,251);
+  doc.roundedRect(ML, y, W-ML-MR, 32, 3, 3, 'F');
+  doc.setDrawColor(...TEAL); doc.setLineWidth(0.5);
+  doc.roundedRect(ML, y, W-ML-MR, 32, 3, 3, 'S');
+
+  const infoFields = [
+    ['Bereich',    m.area||'–'],
+    ['Standort',   m.location||'–'],
+    ['Ort / KST',  m.ort||'–'],
+    ['Hersteller', m.hersteller||'–'],
+    ['Technologie',m.technologie||'–'],
+  ].filter(f=>f[1]&&f[1]!=='–');
+
+  const colW = (W-ML-MR-8) / 2;
+  infoFields.forEach((f,fi) => {
+    const col=fi%2, row=Math.floor(fi/2);
+    const fx=ML+4+col*colW, fy=y+8+row*11;
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(100,140,145);
+    doc.text(f[0].toUpperCase(), fx, fy);
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+    doc.text(f[1], fx, fy+5);
+  });
+
+  y += 40;
+
+  // ── Machine photo ──
+  if (m.image) {
+    try {
+      doc.addImage(m.image,'JPEG',ML,y,W-ML-MR,60,undefined,'FAST');
+      doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
+      doc.rect(ML,y,W-ML-MR,60,'S');
+      y += 64;
+    } catch(e) { /* skip */ }
+  }
+
+  y += 4;
+
+  // ── QR Code section ──
+  const qrSize = 65;
+  const qrX = W/2 - qrSize/2;
+
+  doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+  doc.text('Digitale Abarbeitung', W/2, y+5, {align:'center'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(100,120,130);
+  doc.text('QR-Code scannen → Aufgaben auf Handy/iPad abarbeiten', W/2, y+11, {align:'center'});
+
+  y += 14;
+
+  // QR border box
+  doc.setFillColor(255,255,255);
+  doc.setDrawColor(...TEAL); doc.setLineWidth(1.5);
+  doc.roundedRect(qrX-4, y-4, qrSize+8, qrSize+8, 3, 3, 'FD');
+
+  if (qrDataURL) {
+    doc.addImage(qrDataURL,'PNG', qrX, y, qrSize, qrSize);
+  } else {
+    doc.setFontSize(9); doc.setTextColor(150,150,150);
+    doc.text('QR-Code', W/2, y+qrSize/2, {align:'center'});
+  }
+
+  y += qrSize + 12;
+
+  // URL hint
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(130,150,155);
+  doc.text(scanURL.length > 60 ? scanURL.substring(0,58)+'…' : scanURL, W/2, y, {align:'center'});
+
+  y += 10;
+
+  // ── Aufgaben-Übersicht ──
+  const tasks = tpmDB.tasks.filter(t=>t.machine_id===m.id);
+  if (tasks.length) {
+    const catColors={Reinigung:TEAL,Wartung:[180,80,20],Hygiene:[100,60,160],Qualität:[20,130,80],Sicherheit:[180,30,30]};
+    const intLabels={taeglich:'tägl.',woechentlich:'wöch.',monatlich:'mtl.',jaehrlich:'jährl.'};
+    const cats=[...new Set(tasks.map(t=>t.category||'Reinigung'))];
+
+    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+    doc.text(`${tasks.length} Aufgaben`, ML, y+5);
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(120,140,145);
+    doc.text(`${cats.join(' · ')}`, ML+30, y+5);
+    y += 10;
+
+    tasks.slice(0,8).forEach((task,ti) => {
+      const rgb = catColors[task.category||'Reinigung']||TEAL;
+      const bg = ti%2===0 ? [248,252,252] : [255,255,255];
+      doc.setFillColor(...bg); doc.rect(ML,y,W-ML-MR,7,'F');
+      doc.setFillColor(...rgb); doc.rect(ML,y,2,7,'F');
+      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+      doc.text(task.title.substring(0,40), ML+5, y+4.8);
+      doc.setFont('helvetica','normal'); doc.setTextColor(...rgb);
+      doc.text(intLabels[task.interval]||'–', W-MR-2, y+4.8, {align:'right'});
+      y+=7;
+    });
+    if (tasks.length>8) {
+      doc.setFontSize(7); doc.setTextColor(130,150,155);
+      doc.text(`+ ${tasks.length-8} weitere Aufgaben`, ML, y+5);
+      y+=8;
+    }
+  }
+
+  // ── Footer ──
+  doc.setFillColor(...TEAL); doc.rect(0,H-12,W,12,'F');
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(...WHITE);
+  doc.text('Lean Plus · Coperion', ML, H-4.5);
+  doc.text(new Date().toLocaleDateString('de-DE'), W-MR, H-4.5, {align:'right'});
+
+  doc.save(`Schild_${m.name.replace(/[\s/]/g,'_')}.pdf`);
+  tpmToast('✅ Maschinenschild erstellt');
+}
+
+/* ═══════════════════════════════════════════════════
+   📱  MOBILER ABARBEITUNGS-SCREEN
+═══════════════════════════════════════════════════ */
+let scanMachine = null;
+let scanTasks   = [];
+let scanLogs    = {}; // taskId → {done, photo, note}
+
+function tpmOpenScanScreen(machineId) {
+  scanMachine = tpmDB.machines.find(m=>m.id===machineId);
+  if (!scanMachine) {
+    // Daten noch nicht geladen — laden und retry
+    tpmLoad().then(() => {
+      scanMachine = tpmDB.machines.find(m=>m.id===machineId);
+      if (scanMachine) tpmOpenScanScreen(machineId);
+      else tpmToast('Maschine nicht gefunden');
+    });
+    return;
+  }
+
+  const kw   = getKW(new Date());
+  const year = new Date().getFullYear();
+
+  // Filter tasks for this week
+  scanTasks = tpmDB.tasks.filter(t => {
+    if (t.machine_id !== machineId) return false;
+    if (t.interval==='taeglich')     return true;
+    if (t.interval==='woechentlich') return true;
+    if (t.interval==='monatlich')    return ((kw-1)%4===0);
+    if (t.interval==='jaehrlich')    return kw===4;
+    return true;
+  });
+
+  // Reset logs
+  scanLogs = {};
+  scanTasks.forEach(t => { scanLogs[t.id] = {done:false, photo:null, note:''}; });
+
+  // Fill header
+  document.getElementById('tpm-scan-machine-name').textContent = scanMachine.name;
+  document.getElementById('tpm-scan-meta').textContent =
+    [scanMachine.area, scanMachine.location, `KW ${kw}/${year}`].filter(Boolean).join(' · ');
+
+  tpmRenderScanTasks();
+  tpmUpdateScanProgress();
+
+  document.getElementById('tpm-scan-screen').style.display = 'block';
+  document.getElementById('tpm-scan-done-banner').style.display = 'none';
+}
+
+function tpmCloseScanScreen() {
+  document.getElementById('tpm-scan-screen').style.display = 'none';
+}
+
+function tpmRenderScanTasks() {
+  const el = document.getElementById('tpm-scan-tasks');
+  if (!el) return;
+
+  const catColors = {Reinigung:'#008C96',Wartung:'#B45014',Hygiene:'#643CA0',Qualität:'#148250',Sicherheit:'#B41E1E'};
+  const intervalLabels = {taeglich:'Täglich',woechentlich:'Wöchentlich',monatlich:'Monatlich',jaehrlich:'Jährlich'};
+
+  if (!scanTasks.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:#9ca3af">
+      <div style="font-size:40px;margin-bottom:12px">✅</div>
+      <div style="font-weight:600">Keine Aufgaben diese Woche</div>
+    </div>`;
+    return;
+  }
+
+  const cats = [...new Set(scanTasks.map(t=>t.category||'Reinigung'))];
+
+  el.innerHTML = cats.map(cat => {
+    const catTasks = scanTasks.filter(t=>(t.category||'Reinigung')===cat);
+    const color = catColors[cat]||'#008C96';
+    return `
+      <div>
+        <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.06em;margin:4px 0 6px 2px">${cat}</div>
+        ${catTasks.map(task => {
+          const log = scanLogs[task.id]||{};
+          const done = log.done;
+          return `<div id="scan-card-${task.id}" style="background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 6px rgba(0,0,0,.07);border:2px solid ${done?'#059669':'#e5e7eb'};transition:all .2s">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              ${task.image ? `<img src="${task.image}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:54px;height:54px;background:#f3f4f6;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px">🔧</div>`}
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:15px;margin-bottom:2px;${done?'text-decoration:line-through;color:#9ca3af':''}">${task.title}</div>
+                ${task.description ? `<div style="font-size:12px;color:#6b7280;margin-bottom:6px;line-height:1.4">${task.description}</div>` : ''}
+                <span style="font-size:11px;background:#f3f4f6;padding:2px 8px;border-radius:5px;color:#374151">🔁 ${intervalLabels[task.interval]||'–'}</span>
+              </div>
+              <button onclick="tpmScanToggleDone('${task.id}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${done?'#059669':'#d1d5db'};background:${done?'#059669':'#fff'};color:${done?'#fff':'#d1d5db'};font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s">
+                ${done?'✓':'○'}
+              </button>
+            </div>
+            ${log.photo ? `<div style="margin-top:10px"><img src="${log.photo}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px"></div>` : ''}
+            ${log.note ? `<div style="margin-top:8px;padding:8px;background:#fef3c7;border-radius:6px;font-size:12px;color:#92400e">📝 ${log.note}</div>` : ''}
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <input type="file" id="scan-photo-${task.id}" accept="image/*" capture="environment" style="display:none" onchange="tpmScanAddPhoto(event,'${task.id}')">
+              <button onclick="document.getElementById('scan-photo-${task.id}').click()" style="flex:1;padding:8px;background:#f3f4f6;border:none;border-radius:8px;font-size:12px;cursor:pointer;color:#374151">
+                📷 ${log.photo ? 'Foto ändern' : 'Foto / Abweichung'}
+              </button>
+              <button onclick="tpmScanAddNote('${task.id}')" style="flex:1;padding:8px;background:#f3f4f6;border:none;border-radius:8px;font-size:12px;cursor:pointer;color:#374151">
+                📝 ${log.note ? 'Notiz ändern' : 'Notiz'}
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }).join('');
+}
+
+function tpmScanToggleDone(taskId) {
+  if (!scanLogs[taskId]) scanLogs[taskId]={done:false,photo:null,note:''};
+  scanLogs[taskId].done = !scanLogs[taskId].done;
+  tpmRenderScanTasks();
+  tpmUpdateScanProgress();
+  // Save to Supabase
+  tpmScanSaveLog(taskId);
+}
+
+function tpmScanAddPhoto(e, taskId) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => compressImage(ev.target.result, 800, 0.72, compressed => {
+    if (!scanLogs[taskId]) scanLogs[taskId]={done:false,photo:null,note:''};
+    scanLogs[taskId].photo = compressed;
+    tpmRenderScanTasks();
+    tpmScanSaveLog(taskId);
+  });
+  r.readAsDataURL(f); e.target.value='';
+}
+
+function tpmScanAddNote(taskId) {
+  const current = scanLogs[taskId]?.note||'';
+  const note = prompt('Notiz / Abweichung:', current);
+  if (note===null) return;
+  if (!scanLogs[taskId]) scanLogs[taskId]={done:false,photo:null,note:''};
+  scanLogs[taskId].note = note;
+  tpmRenderScanTasks();
+  tpmScanSaveLog(taskId);
+}
+
+async function tpmScanSaveLog(taskId) {
+  if (!scanMachine) return;
+  const log = scanLogs[taskId];
+  const kw  = getKW(new Date());
+  const year = new Date().getFullYear();
+  const today = new Date().toLocaleDateString('de-DE',{weekday:'long'});
+  const record = {
+    id:         `log-${taskId}-${kw}-${year}`,
+    machine_id: scanMachine.id,
+    task_id:    taskId,
+    year, kw,
+    weekday:    today,
+    shift:      'scan',
+    done:       log.done,
+    done_by:    'Scan',
+    note:       log.note||null,
+    photo:      log.photo||null,
+  };
+  try { await supa.post('tpm_logs', record); } catch(e) { /* offline ok */ }
+}
+
+function tpmUpdateScanProgress() {
+  const total = scanTasks.length;
+  const done  = Object.values(scanLogs).filter(l=>l.done).length;
+  const pct   = total>0 ? Math.round(done/total*100) : 0;
+
+  document.getElementById('tpm-scan-progress-pct').textContent = pct+'%';
+  document.getElementById('tpm-scan-progress-bar').style.width = pct+'%';
+
+  if (pct===100 && total>0) {
+    document.getElementById('tpm-scan-done-banner').style.display = 'block';
+    document.getElementById('tpm-scan-done-sub').textContent =
+      `${done} von ${total} Aufgaben · KW ${getKW(new Date())}/${new Date().getFullYear()}`;
+  }
+}
+
+/* ── QR-Parameter beim Laden prüfen ── */
+function tpmCheckQRParam() {
+  const params = new URLSearchParams(location.search);
+  const machineId = params.get('scan');
+  if (!machineId) return;
+  // Passwort-Check überspringen für Scan-Zugang
+  sessionStorage.setItem('lp_auth_v2','1');
+  const overlay = document.getElementById('lp-login-overlay');
+  if (overlay) overlay.remove();
+  // Warte auf Daten dann Screen öffnen
+  tpmLoad().then(() => tpmOpenScanScreen(machineId));
+}
+
+/* ═══════════════════════════════════════════════════
+   🚦  AMPEL-STATUS auf der Übersicht
+═══════════════════════════════════════════════════ */
+function tpmGetMachineStatus(machineId) {
+  const kw   = getKW(new Date());
+  const year = new Date().getFullYear();
+  const logs  = tpmDB.logs.filter(l=>l.machine_id===machineId && l.kw===kw && l.year===year);
+  const tasks = tpmDB.tasks.filter(t=>t.machine_id===machineId);
+  if (!tasks.length) return 'none';
+  const done = logs.filter(l=>l.done).length;
+  const total = tasks.length;
+  if (done===0) return 'red';
+  if (done<total) return 'yellow';
+  return 'green';
+}
 <style>
 #lp-login-overlay {
   position: fixed; inset: 0; z-index: 9999;
