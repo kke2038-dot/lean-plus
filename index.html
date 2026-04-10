@@ -5260,23 +5260,100 @@ async function tpmUpdateTask(id) {
 /* ══ PROTOKOLL ══ */
 function tpmRenderLog() {
   if (!tpmCurMachine) return;
-  const logs = tpmDB.logs.filter(l=>l.machine_id===tpmCurMachine.id).slice(0,50);
-  const el   = document.getElementById('tpm-log-content');
+  const logs = tpmDB.logs.filter(l=>l.machine_id===tpmCurMachine.id)
+    .sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''))
+    .slice(0,100);
+  const el = document.getElementById('tpm-log-content');
   if (!el) return;
-  if (!logs.length) { el.innerHTML = '<div class="empty-hint">Noch keine Einträge im Protokoll.</div>'; return; }
-  const shiftLabels = {frueh:'Früh',normal:'Normal',spaet:'Spät',nacht:'Nacht'};
-  el.innerHTML = logs.map(log => {
-    const task = tpmDB.tasks.find(t=>t.id===log.task_id);
-    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
-      <div style="width:8px;height:8px;border-radius:50%;background:${log.done?'#059669':'#9ca3af'};flex-shrink:0"></div>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:500">${task?.title||'–'}</div>
-        <div style="font-size:11px;color:#9ca3af">${log.done_by||'–'} · KW ${log.kw}/${log.year} · ${log.weekday} · ${shiftLabels[log.shift]||log.shift}</div>
-        ${log.note ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">📝 ${log.note}</div>` : ''}
+
+  if (!logs.length) {
+    el.innerHTML = '<div class="empty-hint">Noch keine Einträge im Protokoll.<br><small style="color:#9ca3af">Aufgaben über 📱 Abarbeiten abhaken um Einträge zu erzeugen.</small></div>';
+    return;
+  }
+
+  // KPI Zusammenfassung
+  const total    = logs.length;
+  const done     = logs.filter(l=>l.done).length;
+  const withNote = logs.filter(l=>l.note).length;
+  const withPhoto= logs.filter(l=>l.photo).length;
+  const hasDeviations = withNote + withPhoto;
+
+  el.innerHTML = `
+    <!-- KPI Zeile -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:700">${total}</div>
+        <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em">Einträge</div>
       </div>
-      <span style="font-size:11px;color:${log.done?'#059669':'#9ca3af'}">${log.done?'✓ Erledigt':'Offen'}</span>
-    </div>`;
-  }).join('');
+      <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#059669">${done}</div>
+        <div style="font-size:10px;color:#059669;text-transform:uppercase;letter-spacing:.04em">Erledigt</div>
+      </div>
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#d97706">${withNote}</div>
+        <div style="font-size:10px;color:#d97706;text-transform:uppercase;letter-spacing:.04em">Notizen</div>
+      </div>
+      <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#dc2626">${withPhoto}</div>
+        <div style="font-size:10px;color:#dc2626;text-transform:uppercase;letter-spacing:.04em">Fotos</div>
+      </div>
+    </div>
+
+    ${hasDeviations ? `
+    <!-- Abweichungen Banner -->
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⚠️</span>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#c2410c">Abweichungen vorhanden</div>
+        <div style="font-size:12px;color:#9a3412">${withNote} Notiz${withNote!==1?'en':''} · ${withPhoto} Foto${withPhoto!==1?'s':''} · Bitte prüfen</div>
+      </div>
+    </div>` : ''}
+
+    <!-- Log Einträge -->
+    ${logs.map(log => {
+      const task = tpmDB.tasks.find(t=>t.id===log.task_id);
+      const hasDeviation = log.note || log.photo;
+      const borderColor = hasDeviation ? '#fca5a5' : log.done ? '#6ee7b7' : '#e5e7eb';
+      const bgColor     = hasDeviation ? '#fff7ed' : '#fff';
+
+      return `<div style="background:${bgColor};border:1.5px solid ${borderColor};border-radius:10px;padding:12px 14px;margin-bottom:10px">
+
+        <!-- Header Zeile -->
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:${hasDeviation?'10px':'0'}">
+          <div style="width:10px;height:10px;border-radius:50%;background:${log.done?'#059669':'#9ca3af'};flex-shrink:0;margin-top:3px"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;margin-bottom:2px">${task?.title||log.task_id||'Aufgabe'}</div>
+            <div style="font-size:11px;color:#9ca3af">
+              KW ${log.kw}/${log.year} · ${log.weekday||'–'} · ${log.done_by||'Scan'}
+              ${log.created_at ? ' · ' + new Date(log.created_at).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}
+            </div>
+          </div>
+          <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:${log.done?'#d1fae5':'#f3f4f6'};color:${log.done?'#059669':'#9ca3af'};flex-shrink:0">
+            ${log.done ? '✓ Erledigt' : 'Offen'}
+          </span>
+        </div>
+
+        <!-- Notiz -->
+        ${log.note ? `
+        <div style="background:#fef3c7;border-radius:7px;padding:8px 10px;margin-bottom:8px;display:flex;gap:8px;align-items:flex-start">
+          <span style="font-size:16px;flex-shrink:0">📝</span>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:#92400e;margin-bottom:2px">Notiz / Abweichung</div>
+            <div style="font-size:13px;color:#78350f">${log.note}</div>
+          </div>
+        </div>` : ''}
+
+        <!-- Foto -->
+        ${log.photo ? `
+        <div style="margin-top:4px">
+          <div style="font-size:11px;font-weight:600;color:#dc2626;margin-bottom:6px">📷 Foto der Abweichung</div>
+          <img src="${log.photo}"
+            style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid #fca5a5"
+            onclick="tpmOpenLightbox('${log.photo}')">
+        </div>` : ''}
+
+      </div>`;
+    }).join('')}`;
 }
 
 /* ══ MASCHINEN STAMMDATEN ══ */
