@@ -4850,7 +4850,13 @@ function tpmSwitchTab(tab) {
   });
   if (tab==='tasks')    tpmRenderTasksList();
   if (tab==='add-task') tpmRenderAddTask();
-  if (tab==='log')      tpmRenderLog();
+  if (tab==='log') {
+    // Logs frisch aus Supabase laden
+    supa.get('tpm_logs?order=created_at.desc').then(logs => {
+      if (logs) tpmDB.logs = logs;
+      tpmRenderLog();
+    }).catch(() => tpmRenderLog());
+  }
 }
 
 /* ── Toast ── */
@@ -6260,7 +6266,12 @@ async function tpmScanSaveLog(taskId) {
     note:       log.note||null,
     photo:      log.photo||null,
   };
-  try { await supa.post('tpm_logs', record); } catch(e) { /* offline ok */ }
+  try {
+    await supa.post('tpm_logs', record);
+    // Logs neu laden damit Protokoll-Tab aktuell ist
+    const logs = await supa.get('tpm_logs?order=created_at.desc');
+    if (logs) tpmDB.logs = logs;
+  } catch(e) { /* offline ok */ }
 }
 
 function tpmUpdateScanProgress() {
