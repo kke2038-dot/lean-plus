@@ -914,7 +914,7 @@ body {
         <div class="landing-card-title">Reinigung & Wartung</div>
         <div class="landing-card-desc">Reinigungs- und Wartungspläne verwalten, Aushänge drucken und Erledigungen protokollieren.</div>
         <div class="landing-card-features">
-          <span>Maschinenplan</span><span>Hilfsmittel</span><span>Aushang PDF</span><span>Abreißkalender</span>
+          <span>Bereichsplan</span><span>Hilfsmittel</span><span>Aushang PDF</span><span>Abreißkalender</span>
         </div>
       </div>
 
@@ -1509,12 +1509,12 @@ body {
       </button>
       <button class="s5-navitem" id="tpm-snav-machine" onclick="tpmShowSection('machine')" style="display:none">
         <span class="s5-navitem-icon">🏭</span>
-        <span class="s5-navitem-label" id="tpm-snav-machine-label">Maschine</span>
+        <span class="s5-navitem-label" id="tpm-snav-machine-label">Bereich</span>
       </button>
       <div class="s5-navdivider"></div>
       <button class="s5-navitem" id="tpm-snav-machines-admin" onclick="tpmShowSection('machines-admin')">
         <span class="s5-navitem-icon">⚙️</span>
-        <span class="s5-navitem-label">Maschinen</span>
+        <span class="s5-navitem-label">Bereiche</span>
       </button>
       <button class="s5-navitem" id="tpm-snav-tools-admin" onclick="tpmShowSection('tools-admin')">
         <span class="s5-navitem-icon">🛠️</span>
@@ -1526,7 +1526,7 @@ body {
   <!-- MOBILE NAV -->
   <div class="s5-mobile-nav">
     <button class="s5-mobile-navitem active" id="tpm-mnav-overview" onclick="tpmShowSection('overview')">📋<span>Pläne</span></button>
-    <button class="s5-mobile-navitem" id="tpm-mnav-machines-admin" onclick="tpmShowSection('machines-admin')">🏭<span>Maschinen</span></button>
+    <button class="s5-mobile-navitem" id="tpm-mnav-machines-admin" onclick="tpmShowSection('machines-admin')">🏭<span>Bereiche</span></button>
     <button class="s5-mobile-navitem" id="tpm-mnav-tools-admin" onclick="tpmShowSection('tools-admin')">🛠️<span>Hilfsmittel</span></button>
   </div>
 
@@ -1537,7 +1537,7 @@ body {
       <div class="s5-section-header">
         <div>
           <div class="s5-section-title">Reinigungspläne</div>
-          <div class="s5-section-sub">Alle Maschinen und Bereiche</div>
+          <div class="s5-section-sub">Alle Bereiche und Arbeitsbereiche</div>
         </div>
       </div>
       <!-- Filter -->
@@ -1556,7 +1556,7 @@ body {
     <div class="s5-section" id="tpm-sec-machine">
       <div class="s5-section-header">
         <div>
-          <div class="s5-section-title" id="tpm-machine-title">Maschine</div>
+          <div class="s5-section-title" id="tpm-machine-title">Bereich</div>
           <div class="s5-section-sub" id="tpm-machine-sub"></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1646,14 +1646,14 @@ body {
     <!-- ══ MASCHINEN STAMMDATEN ══ -->
     <div class="s5-section" id="tpm-sec-machines-admin">
       <div class="s5-section-header">
-        <div class="s5-section-title">Maschinen verwalten</div>
+        <div class="s5-section-title">Bereiche verwalten</div>
       </div>
       <div class="card" style="margin-bottom:16px">
-        <div class="card-title">Neue Maschine</div>
+        <div class="card-title">Neuer Bereich</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="field-wrap" style="margin-bottom:0">
             <label class="field-label">Name / Nr. <span class="req">*</span></label>
-            <input class="field-input" id="tpm-m-name" placeholder="z.B. BU10">
+            <input class="field-input" id="tpm-m-name" placeholder="z.B. Insel 1">
           </div>
           <div class="field-wrap" style="margin-bottom:0">
             <label class="field-label">Hersteller</label>
@@ -1687,7 +1687,7 @@ body {
             </span>
           </div>
         </div>
-        <button class="btn-primary" style="margin-top:12px" onclick="tpmSaveMachine()">Maschine speichern</button>
+        <button class="btn-primary" style="margin-top:12px" onclick="tpmSaveMachine()">Bereich speichern</button>
       </div>
       <div id="tpm-machines-list"></div>
     </div>
@@ -4916,7 +4916,7 @@ function tpmRenderOverview() {
     grid.innerHTML = `<div class="empty-hint" style="grid-column:1/-1">
       <div style="font-size:32px;margin-bottom:8px">🏭</div>
       Noch keine Maschinen angelegt.<br>
-      <button class="btn-sm" style="margin-top:12px" onclick="tpmShowSection('machines-admin')">Maschine anlegen →</button>
+      <button class="btn-sm" style="margin-top:12px" onclick="tpmShowSection('machines-admin')">Bereich anlegen →</button>
     </div>`;
     return;
   }
@@ -5370,7 +5370,8 @@ function tpmRenderMachinesList() {
         <div style="font-weight:600;font-size:14px">${m.name}</div>
         <div style="font-size:12px;color:#6b7280">${[m.area,m.location,m.ort,m.hersteller].filter(Boolean).join(' · ')}</div>
       </div>
-      <button onclick="tpmOpenMachine('${m.id}')" class="btn-sm">Öffnen →</button>
+      <button onclick="tpmOpenMachine('${m.id}')" class="btn-sm">Aufgaben →</button>
+      <button onclick="tpmEditMachine('${m.id}')" class="btn-sm" style="background:#f3f4f6;border-color:#e5e7eb" title="Bearbeiten">✏️</button>
       <button onclick="tpmDeleteMachine('${m.id}')" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#d1d5db'" title="Löschen">✕</button>
     </div>`).join('');
 }
@@ -5423,13 +5424,122 @@ async function tpmSaveMachine() {
 }
 
 async function tpmDeleteMachine(id) {
-  if (!confirm('Maschine löschen? Alle zugehörigen Aufgaben werden ebenfalls gelöscht.')) return;
+  if (!confirm('Bereich löschen? Alle zugehörigen Aufgaben werden ebenfalls gelöscht.')) return;
   const ok = await tpmDeleteRecord('tpm_machines', id);
   if (ok) {
     tpmDB.machines = tpmDB.machines.filter(m=>m.id!==id);
     tpmDB.tasks    = tpmDB.tasks.filter(t=>t.machine_id!==id);
     tpmRenderMachinesList();
-    tpmToast('Maschine gelöscht');
+    tpmToast('Bereich gelöscht');
+  }
+}
+
+function tpmEditMachine(id) {
+  const m = tpmDB.machines.find(x=>x.id===id);
+  if (!m) return;
+
+  const existing = document.getElementById('tpm-edit-machine-dialog');
+  if (existing) existing.remove();
+
+  const dlg = document.createElement('div');
+  dlg.id = 'tpm-edit-machine-dialog';
+  dlg.style.cssText = 'position:fixed;inset:0;z-index:9995;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:16px';
+
+  dlg.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:16px">Bereich bearbeiten</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="field-wrap" style="margin-bottom:0">
+          <label class="field-label">Name / Nr. <span class="req">*</span></label>
+          <input class="field-input" id="tpm-em-name" value="${m.name||''}">
+        </div>
+        <div class="field-wrap" style="margin-bottom:0">
+          <label class="field-label">Hersteller</label>
+          <input class="field-input" id="tpm-em-hersteller" value="${m.hersteller||''}">
+        </div>
+        <div class="field-wrap" style="margin-bottom:0">
+          <label class="field-label">Standort</label>
+          <input class="field-input" id="tpm-em-location" value="${m.location||''}">
+        </div>
+        <div class="field-wrap" style="margin-bottom:0">
+          <label class="field-label">Bereich</label>
+          <input class="field-input" id="tpm-em-area" value="${m.area||''}">
+        </div>
+        <div class="field-wrap" style="margin-bottom:0">
+          <label class="field-label">Ort / Kostenstelle</label>
+          <input class="field-input" id="tpm-em-ort" value="${m.ort||''}">
+        </div>
+        <div class="field-wrap" style="margin-bottom:0">
+          <label class="field-label">Technologie</label>
+          <input class="field-input" id="tpm-em-technologie" value="${m.technologie||''}">
+        </div>
+      </div>
+      <div class="field-wrap" style="margin-top:6px">
+        <label class="field-label">Foto</label>
+        <input type="file" id="tpm-em-img-input" accept="image/*" style="display:none" onchange="tpmEditMachineImgSelected(event)">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <button class="btn-sm" onclick="document.getElementById('tpm-em-img-input').click()">📷 Foto ändern</button>
+          <span id="tpm-em-img-wrap" style="${m.image?'':'display:none'};position:relative">
+            <img id="tpm-em-img-preview" src="${m.image||''}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
+            <button onclick="tpmEditMachineImgClear()" style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>
+          </span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="document.getElementById('tpm-edit-machine-dialog').remove()"
+          style="flex:1;padding:11px;background:none;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px">
+          Abbrechen
+        </button>
+        <button onclick="tpmUpdateMachine('${id}')"
+          style="flex:2;padding:11px;background:#111;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500">
+          ✅ Speichern
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(dlg);
+  window._tpmEditMachineImg = m.image || null;
+}
+
+function tpmEditMachineImgSelected(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => compressImage(ev.target.result, 800, 0.72, compressed => {
+    window._tpmEditMachineImg = compressed;
+    const img  = document.getElementById('tpm-em-img-preview');
+    const wrap = document.getElementById('tpm-em-img-wrap');
+    if (img)  img.src = compressed;
+    if (wrap) wrap.style.display = 'inline-block';
+  });
+  r.readAsDataURL(f); e.target.value='';
+}
+
+function tpmEditMachineImgClear() {
+  window._tpmEditMachineImg = null;
+  const wrap = document.getElementById('tpm-em-img-wrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+async function tpmUpdateMachine(id) {
+  const name = document.getElementById('tpm-em-name')?.value.trim();
+  if (!name) { tpmToast('Bitte Name eingeben'); return; }
+  const updated = {
+    id, name,
+    hersteller:  document.getElementById('tpm-em-hersteller')?.value.trim()||'',
+    location:    document.getElementById('tpm-em-location')?.value.trim()||'',
+    area:        document.getElementById('tpm-em-area')?.value.trim()||'',
+    ort:         document.getElementById('tpm-em-ort')?.value.trim()||'',
+    technologie: document.getElementById('tpm-em-technologie')?.value.trim()||'',
+    image:       window._tpmEditMachineImg || null,
+    active:      true,
+  };
+  const ok = await tpmSaveRecord('tpm_machines', updated);
+  if (ok) {
+    const idx = tpmDB.machines.findIndex(m=>m.id===id);
+    if (idx>=0) tpmDB.machines[idx] = { ...tpmDB.machines[idx], ...updated };
+    document.getElementById('tpm-edit-machine-dialog')?.remove();
+    tpmRenderMachinesList();
+    tpmToast('✅ Bereich aktualisiert');
   }
 }
 
@@ -6103,13 +6213,34 @@ async function tpmGenerateSchild() {
 
   y += 40;
 
-  // ── Machine photo ──
+  // ── Machine photo — Seitenverhältnis erhalten ──
   if (m.image) {
     try {
-      doc.addImage(m.image,'JPEG',ML,y,W-ML-MR,60,undefined,'FAST');
-      doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
-      doc.rect(ML,y,W-ML-MR,60,'S');
-      y += 64;
+      // Bild laden um Seitenverhältnis zu berechnen
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const maxW = W-ML-MR;
+          const maxH = 65;
+          let drawW = maxW, drawH = maxH;
+          const ratio = img.width / img.height;
+          if (ratio > maxW/maxH) {
+            // breiter als hoch → Breite ausschöpfen
+            drawH = Math.round(maxW / ratio);
+          } else {
+            // höher als breit → Höhe ausschöpfen
+            drawW = Math.round(maxH * ratio);
+          }
+          const xOffset = ML + (maxW - drawW) / 2;
+          doc.addImage(m.image,'JPEG', xOffset, y, drawW, drawH, undefined, 'FAST');
+          doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
+          doc.rect(xOffset, y, drawW, drawH, 'S');
+          y += drawH + 4;
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = m.image;
+      });
     } catch(e) { /* skip */ }
   }
 
