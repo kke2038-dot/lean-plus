@@ -6144,123 +6144,114 @@ async function tpmGenerateSchild() {
   // Build scan URL
   const scanURL = `${location.origin}${location.pathname}?scan=${m.id}`;
 
-  // Generate QR as canvas via QRCode.js
+  // Generate QR
   const qrDiv = document.createElement('div');
   qrDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
   document.body.appendChild(qrDiv);
-
   await new Promise((resolve) => {
-    new QRCode(qrDiv, {
-      text: scanURL, width: 200, height: 200,
-      colorDark: '#000000', colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
+    new QRCode(qrDiv, { text: scanURL, width: 256, height: 256,
+      colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
     setTimeout(resolve, 300);
   });
-
   const qrCanvas = qrDiv.querySelector('canvas');
   const qrDataURL = qrCanvas ? qrCanvas.toDataURL('image/png') : null;
   document.body.removeChild(qrDiv);
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
-  const W=210, H=297, ML=15, MR=15;
-
+  const W=210, H=297, ML=12, MR=12;
   const TEAL  = [0,140,150];
+  const TEAL2 = [0,100,108];
   const WHITE = [255,255,255];
   const DARK  = [20,20,20];
+  const LGRAY = [240,245,246];
 
-  // ── Teal header band ──
-  doc.setFillColor(...TEAL); doc.rect(0,0,W,45,'F');
+  // ══════════════════════════════════════
+  // HEADER — großer Teal-Block mit allen Infos
+  // ══════════════════════════════════════
+  const hdrH = 90;
+  doc.setFillColor(...TEAL); doc.rect(0, 0, W, hdrH, 'F');
 
-  // Company / App name
-  doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(...WHITE);
-  doc.setFillColor(255,255,255,0.2);
-  doc.text('LEAN PLUS', ML, 14);
-  doc.setFontSize(9); doc.setTextColor(200,240,242);
-  doc.text('Reinigung & Wartung', ML, 20);
+  // App Label
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(180,230,234);
+  doc.text('LEAN PLUS  ·  Reinigung & Wartung', ML, 10);
 
-  // Machine name BIG
-  doc.setFontSize(36); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+  // Bereichsname groß
+  doc.setFontSize(34); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
   const nameLines = doc.splitTextToSize(m.name, W-ML-MR);
-  doc.text(nameLines.slice(0,2), ML, 36);
+  doc.text(nameLines.slice(0,2), ML, 26);
 
-  let y = 58;
+  // Trennlinie
+  doc.setDrawColor(255,255,255,0.3); doc.setLineWidth(0.3);
+  doc.line(ML, 34, W-MR, 34);
 
-  // ── Info box ──
-  doc.setFillColor(245,250,251);
-  doc.roundedRect(ML, y, W-ML-MR, 32, 3, 3, 'F');
-  doc.setDrawColor(...TEAL); doc.setLineWidth(0.5);
-  doc.roundedRect(ML, y, W-ML-MR, 32, 3, 3, 'S');
-
-  const infoFields = [
-    ['Bereich',    m.area||'–'],
-    ['Standort',   m.location||'–'],
-    ['Ort / KST',  m.ort||'–'],
-    ['Hersteller', m.hersteller||'–'],
-    ['Technologie',m.technologie||'–'],
-  ].filter(f=>f[1]&&f[1]!=='–');
-
-  const colW = (W-ML-MR-8) / 2;
-  infoFields.forEach((f,fi) => {
-    const col=fi%2, row=Math.floor(fi/2);
-    const fx=ML+4+col*colW, fy=y+8+row*11;
-    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(100,140,145);
+  // Info-Felder in 3 Spalten
+  const allFields = [
+    ['Bereich',    m.area],
+    ['Standort',   m.location],
+    ['Ort / KST',  m.ort],
+    ['Hersteller', m.hersteller],
+    ['Technologie',m.technologie],
+    ['Stand',      new Date().toLocaleDateString('de-DE')],
+  ];
+  const colW3 = (W-ML-MR) / 3;
+  allFields.forEach((f, fi) => {
+    const col = fi % 3;
+    const row = Math.floor(fi / 3);
+    const fx  = ML + col * colW3;
+    const fy  = 42 + row * 18;
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,220,224);
     doc.text(f[0].toUpperCase(), fx, fy);
-    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
-    doc.text(f[1], fx, fy+5);
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+    doc.text(f[1]||'–', fx, fy+6);
   });
 
-  y += 40;
+  let y = hdrH + 6;
 
-  // ── Machine photo — Seitenverhältnis erhalten ──
+  // ══════════════════════════════════════
+  // FOTO — proportional skaliert
+  // ══════════════════════════════════════
   if (m.image) {
     try {
-      // Bild laden um Seitenverhältnis zu berechnen
       await new Promise(resolve => {
         const img = new Image();
         img.onload = () => {
           const maxW = W-ML-MR;
-          const maxH = 65;
-          let drawW = maxW, drawH = maxH;
+          const maxH = 70;
           const ratio = img.width / img.height;
-          if (ratio > maxW/maxH) {
-            // breiter als hoch → Breite ausschöpfen
-            drawH = Math.round(maxW / ratio);
-          } else {
-            // höher als breit → Höhe ausschöpfen
-            drawW = Math.round(maxH * ratio);
-          }
-          const xOffset = ML + (maxW - drawW) / 2;
-          doc.addImage(m.image,'JPEG', xOffset, y, drawW, drawH, undefined, 'FAST');
-          doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
-          doc.rect(xOffset, y, drawW, drawH, 'S');
-          y += drawH + 4;
+          let drawW = maxW, drawH = maxH;
+          if (ratio > maxW/maxH) { drawH = Math.round(maxW/ratio); }
+          else { drawW = Math.round(maxH*ratio); }
+          const xOff = ML + (maxW-drawW)/2;
+          doc.addImage(m.image,'JPEG', xOff, y, drawW, drawH, undefined, 'FAST');
+          doc.setDrawColor(...TEAL); doc.setLineWidth(0.4);
+          doc.rect(xOff, y, drawW, drawH, 'S');
+          y += drawH + 6;
           resolve();
         };
         img.onerror = () => resolve();
         img.src = m.image;
       });
-    } catch(e) { /* skip */ }
+    } catch(e) {}
   }
 
+  // ══════════════════════════════════════
+  // QR-CODE — zentriert, groß
+  // ══════════════════════════════════════
   y += 4;
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+  doc.text('Digitale Abarbeitung', W/2, y, {align:'center'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(100,120,130);
+  doc.text('QR-Code mit Handy oder iPad scannen', W/2, y+6, {align:'center'});
+  y += 12;
 
-  // ── QR Code section ──
-  const qrSize = 65;
+  const qrSize = 80;
   const qrX = W/2 - qrSize/2;
 
-  doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
-  doc.text('Digitale Abarbeitung', W/2, y+5, {align:'center'});
-  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(100,120,130);
-  doc.text('QR-Code scannen → Aufgaben auf Handy/iPad abarbeiten', W/2, y+11, {align:'center'});
-
-  y += 14;
-
-  // QR border box
+  // QR Rahmen
   doc.setFillColor(255,255,255);
-  doc.setDrawColor(...TEAL); doc.setLineWidth(1.5);
-  doc.roundedRect(qrX-4, y-4, qrSize+8, qrSize+8, 3, 3, 'FD');
+  doc.setDrawColor(...TEAL); doc.setLineWidth(2);
+  doc.roundedRect(qrX-5, y-5, qrSize+10, qrSize+10, 4, 4, 'FD');
 
   if (qrDataURL) {
     doc.addImage(qrDataURL,'PNG', qrX, y, qrSize, qrSize);
@@ -6268,51 +6259,38 @@ async function tpmGenerateSchild() {
     doc.setFontSize(9); doc.setTextColor(150,150,150);
     doc.text('QR-Code', W/2, y+qrSize/2, {align:'center'});
   }
+  y += qrSize + 14;
 
-  y += qrSize + 12;
-
-  // URL hint
-  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(130,150,155);
-  doc.text(scanURL.length > 60 ? scanURL.substring(0,58)+'…' : scanURL, W/2, y, {align:'center'});
-
+  // URL klein
+  doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(140,155,158);
+  const shortURL = scanURL.length>58 ? scanURL.substring(0,56)+'…' : scanURL;
+  doc.text(shortURL, W/2, y, {align:'center'});
   y += 10;
 
-  // ── Aufgaben-Übersicht ──
-  const tasks = tpmDB.tasks.filter(t=>t.machine_id===m.id);
-  if (tasks.length) {
-    const catColors={Reinigung:TEAL,Wartung:[180,80,20],Hygiene:[100,60,160],Qualität:[20,130,80],Sicherheit:[180,30,30]};
-    const intLabels={taeglich:'tägl.',woechentlich:'wöch.',monatlich:'mtl.',jaehrlich:'jährl.'};
-    const cats=[...new Set(tasks.map(t=>t.category||'Reinigung'))];
-
-    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
-    doc.text(`${tasks.length} Aufgaben`, ML, y+5);
-    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(120,140,145);
-    doc.text(`${cats.join(' · ')}`, ML+30, y+5);
-    y += 10;
-
-    tasks.slice(0,8).forEach((task,ti) => {
-      const rgb = catColors[task.category||'Reinigung']||TEAL;
-      const bg = ti%2===0 ? [248,252,252] : [255,255,255];
-      doc.setFillColor(...bg); doc.rect(ML,y,W-ML-MR,7,'F');
-      doc.setFillColor(...rgb); doc.rect(ML,y,2,7,'F');
-      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
-      doc.text(task.title.substring(0,40), ML+5, y+4.8);
-      doc.setFont('helvetica','normal'); doc.setTextColor(...rgb);
-      doc.text(intLabels[task.interval]||'–', W-MR-2, y+4.8, {align:'right'});
-      y+=7;
-    });
-    if (tasks.length>8) {
-      doc.setFontSize(7); doc.setTextColor(130,150,155);
-      doc.text(`+ ${tasks.length-8} weitere Aufgaben`, ML, y+5);
-      y+=8;
+  // ══════════════════════════════════════
+  // BEMERKUNG — freies Feld
+  // ══════════════════════════════════════
+  if (y < H - 40) {
+    doc.setFillColor(...LGRAY);
+    doc.roundedRect(ML, y, W-ML-MR, H-y-16, 3, 3, 'F');
+    doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
+    doc.roundedRect(ML, y, W-ML-MR, H-y-16, 3, 3, 'S');
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...TEAL);
+    doc.text('BEMERKUNG', ML+4, y+7);
+    // Linien zum Schreiben
+    doc.setDrawColor(200,220,222); doc.setLineWidth(0.2);
+    for (let ly = y+14; ly < H-20; ly+=9) {
+      doc.line(ML+4, ly, W-MR-4, ly);
     }
   }
 
-  // ── Footer ──
-  doc.setFillColor(...TEAL); doc.rect(0,H-12,W,12,'F');
+  // ══════════════════════════════════════
+  // FOOTER
+  // ══════════════════════════════════════
+  doc.setFillColor(...TEAL2); doc.rect(0, H-11, W, 11, 'F');
   doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(...WHITE);
-  doc.text('Lean Plus · Coperion', ML, H-4.5);
-  doc.text(new Date().toLocaleDateString('de-DE'), W-MR, H-4.5, {align:'right'});
+  doc.text('Lean Plus · Coperion', ML, H-4);
+  doc.text(new Date().toLocaleDateString('de-DE'), W-MR, H-4, {align:'right'});
 
   doc.save(`Schild_${m.name.replace(/[\s/]/g,'_')}.pdf`);
   tpmToast('✅ Maschinenschild erstellt');
