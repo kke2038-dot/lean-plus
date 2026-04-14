@@ -1274,6 +1274,12 @@ body {
       </div>
       <div class="card">
         <div class="card-title">Audit-Stammdaten</div>
+        <div class="field-wrap" id="s5-bereich-wrap">
+          <label class="field-label">Bereich (aus TPM) <span style="font-size:10px;color:#9ca3af;font-weight:400">optional</span></label>
+          <select class="field-input" id="s5-bereich-select" onchange="s5BereichSelected()">
+            <option value="">— Bereich wählen —</option>
+          </select>
+        </div>
         <div class="field-wrap">
           <label class="field-label">Auditor <span class="req">*</span></label>
           <select class="field-input" id="setupAuditor" onchange="setupAuditorChange()">
@@ -1677,13 +1683,13 @@ body {
           </div>
         </div>
         <div class="field-wrap" style="margin-top:10px">
-          <label class="field-label">Foto der Maschine</label>
+          <label class="field-label">Foto des Bereichs</label>
           <input type="file" id="tpm-m-img-input" accept="image/*" style="display:none" onchange="tpmMachineImgSelected(event)">
           <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
-            <button class="btn-sm" onclick="document.getElementById('tpm-m-img-input').click()">📷 Foto wählen</button>
+            <button type="button" class="btn-sm" onclick="tpmTriggerMachineImg()">📷 Foto wählen</button>
             <span id="tpm-m-img-preview-wrap" style="display:none;position:relative">
               <img id="tpm-m-img-preview" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
-              <button onclick="tpmMachineImgClear()" style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>
+              <button type="button" onclick="tpmMachineImgClear()" style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>
             </span>
           </div>
         </div>
@@ -3792,6 +3798,18 @@ function toggleActionDone(event, auditId, globalIdx) {
    SETUP
 ═══════════════════════════════════════════ */
 function renderSetup() {
+  // Populate TPM Bereiche aus tpm_machines
+  const bereichSel = document.getElementById('s5-bereich-select');
+  if (bereichSel) {
+    bereichSel.innerHTML = '<option value="">— Bereich wählen —</option>' +
+      (tpmDB.machines||[]).map(m=>`<option value="${m.id}"
+        data-standort="${m.location||''}"
+        data-bereich="${m.area||''}"
+        data-ort="${m.ort||''}"
+        data-name="${m.name||''}"
+      >${m.name}${m.area?' · '+m.area:''}${m.location?' · '+m.location:''}</option>`).join('');
+  }
+
   // Populate auditor select
   const aSel = document.getElementById('setupAuditor');
   aSel.innerHTML = '<option value="">— Auswählen —</option>' +
@@ -3818,6 +3836,46 @@ function renderSetup() {
 function setupAuditorChange() {
   const v = document.getElementById('setupAuditor').value;
   document.getElementById('auditorFreeWrap').style.display = v==='__free__' ? 'block' : 'none';
+  checkSetupReady();
+}
+
+function s5BereichSelected() {
+  const sel = document.getElementById('s5-bereich-select');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+
+  const standort = opt.getAttribute('data-standort');
+  const bereich  = opt.getAttribute('data-bereich');
+  const name     = opt.getAttribute('data-name');
+
+  // Standort-Dropdown: passenden Eintrag wählen oder Freitext setzen
+  const lSel = document.getElementById('setupLocation');
+  let matched = false;
+
+  // Versuche Standort in der Liste zu finden
+  if (standort) {
+    for (const opt of lSel.options) {
+      if (opt.text.toLowerCase().includes(standort.toLowerCase())) {
+        lSel.value = opt.value;
+        matched = true;
+        break;
+      }
+    }
+  }
+
+  // Wenn kein Standort gefunden → Freitext mit Bereichsname
+  if (!matched) {
+    lSel.value = '__free__';
+    const freeInput = document.getElementById('locationFreeText');
+    if (freeInput) freeInput.value = [name, bereich, standort].filter(Boolean).join(' – ');
+    document.getElementById('locationFreeWrap').style.display = 'block';
+    document.getElementById('deptWrap').style.display = 'none';
+  } else {
+    setupLocationChange();
+  }
+
+  // Toast zur Bestätigung
+  tpmToast(`✅ Bereich "${name}" übernommen`);
   checkSetupReady();
 }
 
@@ -5383,15 +5441,22 @@ function tpmMachineImgSelected(e) {
     tpmPendingMachineImg = compressed;
     const img = document.getElementById('tpm-m-img-preview');
     const wrap = document.getElementById('tpm-m-img-preview-wrap');
-    if (img) img.src = compressed;
-    if (wrap) wrap.style.display = 'inline-block';
+    if (img) { img.src = compressed; }
+    if (wrap) { wrap.style.display = 'inline-block'; }
   });
-  r.readAsDataURL(f); e.target.value='';
+  r.readAsDataURL(f);
+  e.target.value = '';
 }
 function tpmMachineImgClear() {
   tpmPendingMachineImg = null;
+  const img  = document.getElementById('tpm-m-img-preview');
   const wrap = document.getElementById('tpm-m-img-preview-wrap');
+  if (img)  img.src = '';
   if (wrap) wrap.style.display = 'none';
+}
+function tpmTriggerMachineImg() {
+  const inp = document.getElementById('tpm-m-img-input');
+  if (inp) inp.click();
 }
 
 async function tpmSaveMachine() {
