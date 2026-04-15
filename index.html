@@ -6938,6 +6938,45 @@ async function safetyLoad() {
   safetyUpdateBadge();
 }
 
+function safetyResetForm(prefix) {
+  // Alle Inputs/Textareas/Selects im Formular leeren
+  const sec = document.getElementById('safety-sec-' +
+    (prefix==='inc' ? 'incident' : prefix==='nm' ? 'nearmiss' : 'observation'));
+  if (!sec) return;
+
+  sec.querySelectorAll('input:not([type=file]):not([type=hidden]), textarea').forEach(el => {
+    el.value = '';
+    el.style.borderColor = '';
+  });
+  sec.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+
+  // Foto-Arrays leeren
+  if (prefix === 'inc') _incPhotos = [];
+  if (prefix === 'nm')  _nmPhotos  = [];
+  if (prefix === 'obs') _obsPhotos = [];
+  safetyRenderPhotoGrid(prefix);
+
+  // Toggle-Buttons zurücksetzen (Near Miss)
+  ['nm-pot-injury','nm-pot-damage','nm-pot-env',
+   'nm-cause-condition','nm-cause-behavior','nm-cause-org'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.dataset.selected = '0'; el.style.outline = 'none'; el.style.fontWeight = 'normal'; }
+  });
+
+  // Observation Kategorie zurücksetzen
+  _obsSelectedCat = '';
+  ['condition','behavior','idea'].forEach(c => {
+    const el = document.getElementById('obs-cat-' + c);
+    if (el) { el.style.borderColor = '#e5e7eb'; el.style.background = '#fff'; }
+  });
+
+  // Datum wieder auf jetzt setzen
+  const now = new Date();
+  const local = new Date(now - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const dtEl = document.getElementById(prefix + '-datetime');
+  if (dtEl) dtEl.value = local;
+}
+
 function safetyBuildLocationList() {
   const dl = document.getElementById('safety-locations-list');
   if (!dl) return;
@@ -7127,12 +7166,10 @@ async function safetySaveIncident() {
   };
 
   try {
-    const result = await supa.post('safety_incidents', record);
-    if (result === null || result === undefined) {
-      tpmToast('❌ Fehler: Tabelle safety_incidents nicht gefunden. Bitte SQL in Supabase ausführen.');
-      return;
-    }
+    await supa.post('safety_incidents', record);
+    // null = 204 No Content = Erfolg bei return=minimal
     safetyDB.incidents.unshift(record);
+    safetyResetForm('inc');
     tpmToast('✅ Unfall gespeichert');
     safetyShowSection('overview');
     safetyUpdateBadge();
@@ -7177,12 +7214,9 @@ async function safetySaveNearMiss() {
   };
 
   try {
-    const result = await supa.post('safety_nearmisses', record);
-    if (result === null || result === undefined) {
-      tpmToast('❌ Fehler: Tabelle safety_nearmisses nicht gefunden. Bitte SQL in Supabase ausführen.');
-      return;
-    }
+    await supa.post('safety_nearmisses', record);
     safetyDB.nearmisses.unshift(record);
+    safetyResetForm('nm');
     tpmToast('✅ Near Miss gespeichert');
     safetyShowSection('overview');
     safetyUpdateBadge();
@@ -7210,12 +7244,9 @@ async function safetySaveObservation() {
   };
 
   try {
-    const result = await supa.post('safety_observations', record);
-    if (result === null || result === undefined) {
-      tpmToast('❌ Fehler: Tabelle safety_observations nicht gefunden. Bitte SQL in Supabase ausführen.');
-      return;
-    }
+    await supa.post('safety_observations', record);
     safetyDB.observations.unshift(record);
+    safetyResetForm('obs');
     tpmToast('✅ Beobachtung gespeichert');
     safetyShowSection('overview');
     safetyUpdateBadge();
@@ -7223,6 +7254,42 @@ async function safetySaveObservation() {
     tpmToast('❌ Speichern fehlgeschlagen: ' + (e.message || 'Unbekannter Fehler'));
     console.error('Observation Fehler:', e);
   }
+}
+
+function safetyResetForm(prefix) {
+  const secId = prefix==='inc' ? 'incident' : prefix==='nm' ? 'nearmiss' : 'observation';
+  const section = document.getElementById('safety-sec-' + secId);
+  if (!section) return;
+
+  // Alle Inputs/Textareas/Selects leeren
+  section.querySelectorAll('input:not([type=file]):not([type=hidden]), textarea').forEach(el => {
+    if (el.type === 'datetime-local') {
+      const now = new Date();
+      el.value = new Date(now - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    } else {
+      el.value = '';
+    }
+  });
+  section.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+
+  // Toggle-Buttons zurücksetzen
+  ['nm-pot-injury','nm-pot-damage','nm-pot-env',
+   'nm-cause-condition','nm-cause-behavior','nm-cause-org'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.dataset.selected='0'; el.style.outline='none'; el.style.fontWeight='normal'; }
+  });
+
+  // Kategorie-Kacheln zurücksetzen
+  ['condition','behavior','idea'].forEach(c => {
+    const el = document.getElementById('obs-cat-' + c);
+    if (el) { el.style.borderColor='#e5e7eb'; el.style.background='#fff'; }
+  });
+  _obsSelectedCat = '';
+
+  // Fotos zurücksetzen
+  if (prefix==='inc') { _incPhotos=[]; safetyRenderPhotoGrid('inc'); }
+  if (prefix==='nm')  { _nmPhotos=[];  safetyRenderPhotoGrid('nm');  }
+  if (prefix==='obs') { _obsPhotos=[];  safetyRenderPhotoGrid('obs'); }
 }
 
 function safetyRenderList() {
