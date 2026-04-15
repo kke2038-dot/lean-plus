@@ -867,6 +867,10 @@ body {
       🔧 Reinigung & Wartung
       <span class="tab-badge" id="nav-tpm-badge">0</span>
     </button>
+    <button class="lean-nav-tab" id="navtab-safety" onclick="showPane('safety')">
+      🦺 Safety
+      <span class="tab-badge" id="nav-safety-badge">0</span>
+    </button>
   </div>
 </nav>
 
@@ -915,6 +919,15 @@ body {
         <div class="landing-card-desc">Reinigungs- und Wartungspläne verwalten, Aushänge drucken und Erledigungen protokollieren.</div>
         <div class="landing-card-features">
           <span>Bereichsplan</span><span>Hilfsmittel</span><span>Aushang PDF</span><span>Abreißkalender</span>
+        </div>
+      </div>
+
+      <div class="landing-card" onclick="showPane('safety')">
+        <div class="landing-card-icon" style="background:#fee2e2">🦺</div>
+        <div class="landing-card-title">Safety</div>
+        <div class="landing-card-desc">Unfälle, Beinahe-Unfälle und Beobachtungen erfassen, dokumentieren und auswerten.</div>
+        <div class="landing-card-features">
+          <span>Incident</span><span>Near Miss</span><span>Observation</span><span>Fotos</span>
         </div>
       </div>
 
@@ -1734,6 +1747,348 @@ body {
 </div><!-- /pane-tpm -->
 
 <!-- ═══════════════════════════════════
+     SAFETY PANE
+═══════════════════════════════════ -->
+<div class="lean-pane" id="pane-safety">
+  <!-- Gemeinsame Datalist für alle Standort-Felder -->
+  <datalist id="safety-locations-list"></datalist>
+  <!-- Melder-Datalist aus 5S Auditoren -->
+  <datalist id="safety-reporters-list"></datalist>
+  <div class="s5-layout">
+
+    <!-- Sidebar -->
+    <nav class="s5-sidebar">
+      <div class="s5-sidebar-title">Safety</div>
+      <button class="s5-navitem active" id="safety-snav-overview" onclick="safetyShowSection('overview')">
+        <span class="s5-navitem-icon">📊</span>
+        <span class="s5-navitem-label">Übersicht</span>
+        <span class="s5-navitem-badge" id="safety-badge-total"></span>
+      </button>
+      <button class="s5-navitem" id="safety-snav-incident" onclick="safetyShowSection('incident')">
+        <span class="s5-navitem-icon">🚨</span>
+        <span class="s5-navitem-label">Unfall melden</span>
+      </button>
+      <button class="s5-navitem" id="safety-snav-nearmiss" onclick="safetyShowSection('nearmiss')">
+        <span class="s5-navitem-icon">⚠️</span>
+        <span class="s5-navitem-label">Near Miss melden</span>
+      </button>
+      <button class="s5-navitem" id="safety-snav-observation" onclick="safetyShowSection('observation')">
+        <span class="s5-navitem-icon">👁</span>
+        <span class="s5-navitem-label">Beobachtung melden</span>
+      </button>
+    </nav>
+
+    <!-- Content -->
+    <div class="s5-content" id="safety-content">
+
+      <!-- ÜBERSICHT -->
+      <div class="s5-section active" id="safety-sec-overview">
+        <div class="s5-section-header">
+          <div class="s5-section-title">Übersicht</div>
+        </div>
+        <!-- KPI Row -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="safety-kpi-row">
+          <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:26px;font-weight:700;color:#dc2626" id="safety-kpi-incidents">0</div>
+            <div style="font-size:11px;color:#dc2626;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Unfälle</div>
+          </div>
+          <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:26px;font-weight:700;color:#d97706" id="safety-kpi-nearmiss">0</div>
+            <div style="font-size:11px;color:#d97706;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Near Miss</div>
+          </div>
+          <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:26px;font-weight:700;color:#059669" id="safety-kpi-observations">0</div>
+            <div style="font-size:11px;color:#059669;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Beobachtungen</div>
+          </div>
+        </div>
+        <div id="safety-list-content">
+          <div class="empty-hint">Noch keine Meldungen vorhanden.<br><small style="color:#9ca3af">Nutze die Sidebar um einen Vorfall zu melden.</small></div>
+        </div>
+      </div>
+
+      <!-- UNFALL MELDEN -->
+      <div class="s5-section" id="safety-sec-incident">
+        <div class="s5-section-header">
+          <div class="s5-section-title">🚨 Meldepflichtiger Unfall</div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">📍 Basisdaten</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field-wrap">
+              <label class="field-label">Datum & Uhrzeit <span class="req">*</span></label>
+              <input class="field-input" type="datetime-local" id="inc-datetime">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Standort / Werk <span class="req">*</span></label>
+              <input class="field-input" id="inc-location" placeholder="z.B. Werk 1 / Montage" list="safety-locations-list" autocomplete="off">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Bereich / Linie</label>
+              <input class="field-input" id="inc-area" placeholder="z.B. Linie 3" list="safety-locations-list" autocomplete="off">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Arbeitsplatz</label>
+              <input class="field-input" id="inc-workplace" placeholder="z.B. Schweißstation" list="safety-locations-list" autocomplete="off">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Melder (Name) <span class="req">*</span></label>
+              <input class="field-input" id="inc-reporter" placeholder="Vor- und Nachname" list="safety-reporters-list" autocomplete="off">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Personalnummer (optional)</label>
+              <input class="field-input" id="inc-reporter-nr" placeholder="z.B. 12345">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">👤 Beteiligte Person</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field-wrap">
+              <label class="field-label">Name der verunfallten Person <span class="req">*</span></label>
+              <input class="field-input" id="inc-victim" placeholder="Vor- und Nachname">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Funktion / Abteilung</label>
+              <input class="field-input" id="inc-victim-dept" placeholder="z.B. Produktion">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Beschäftigung</label>
+              <select class="field-input" id="inc-victim-type">
+                <option value="intern">Intern</option>
+                <option value="extern">Extern (Fremdfirma)</option>
+                <option value="leiharbeit">Leiharbeit</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">⚠️ Unfallbeschreibung</div>
+          <div class="field-wrap">
+            <label class="field-label">Was ist passiert? <span class="req">*</span></label>
+            <textarea class="field-input" id="inc-description" rows="3" placeholder="Detaillierte Beschreibung des Unfallhergangs..."></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field-wrap">
+              <label class="field-label">Tätigkeit zum Zeitpunkt</label>
+              <input class="field-input" id="inc-activity" placeholder="z.B. Maschinenbedienung">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Art des Unfalls</label>
+              <select class="field-input" id="inc-type">
+                <option value="">Bitte wählen...</option>
+                <option>Sturz / Ausrutschen</option>
+                <option>Schnitt / Stich</option>
+                <option>Quetschung / Einklemmung</option>
+                <option>Verbrennung / Verbrühung</option>
+                <option>Elektrounfall</option>
+                <option>Überanstrengung</option>
+                <option>Anfahren / Zusammenstoß</option>
+                <option>Herabfallen von Gegenständen</option>
+                <option>Sonstiges</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">🩹 Verletzung</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field-wrap">
+              <label class="field-label">Art der Verletzung</label>
+              <select class="field-input" id="inc-injury-type">
+                <option value="">Bitte wählen...</option>
+                <option>Schnitt / Schnittwunde</option>
+                <option>Prellung / Kontusion</option>
+                <option>Fraktur / Knochenbruch</option>
+                <option>Verbrennung</option>
+                <option>Verstauchung / Zerrung</option>
+                <option>Augenverletzung</option>
+                <option>Sonstiges</option>
+              </select>
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Betroffenes Körperteil</label>
+              <select class="field-input" id="inc-body-part">
+                <option value="">Bitte wählen...</option>
+                <option>Kopf / Gesicht</option>
+                <option>Auge</option>
+                <option>Hand / Finger</option>
+                <option>Arm / Ellenbogen</option>
+                <option>Fuß / Zehen</option>
+                <option>Bein / Knie</option>
+                <option>Rücken / Wirbelsäule</option>
+                <option>Schulter</option>
+                <option>Sonstiges</option>
+              </select>
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Schweregrad <span class="req">*</span></label>
+              <select class="field-input" id="inc-severity">
+                <option value="">Bitte wählen...</option>
+                <option value="first_aid">Erste Hilfe (kein Arzt)</option>
+                <option value="doctor">Arztbehandlung</option>
+                <option value="lost_time">Ausfall / Arbeitsunfähigkeit</option>
+                <option value="hospital">Krankenhausaufenthalt</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">📷 Fotodokumentation</div>
+          <div id="inc-photos-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+          <input type="file" id="inc-photo-input" accept="image/*" multiple style="display:none" onchange="safetyAddPhotos('inc',event)">
+          <button class="btn-sm" onclick="document.getElementById('inc-photo-input').click()">📷 Foto(s) hinzufügen</button>
+        </div>
+
+        <button class="btn-primary" onclick="safetySaveIncident()">🚨 Unfall speichern</button>
+      </div>
+
+      <!-- NEAR MISS MELDEN -->
+      <div class="s5-section" id="safety-sec-nearmiss">
+        <div class="s5-section-header">
+          <div class="s5-section-title">⚠️ Near Miss – Beinahe-Unfall</div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">📍 Basis</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field-wrap">
+              <label class="field-label">Datum & Uhrzeit <span class="req">*</span></label>
+              <input class="field-input" type="datetime-local" id="nm-datetime">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Standort / Bereich <span class="req">*</span></label>
+              <input class="field-input" id="nm-location" placeholder="z.B. Montage / Linie 2" list="safety-locations-list" autocomplete="off">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Melder <span class="req">*</span></label>
+              <input class="field-input" id="nm-reporter" placeholder="Name (kann anonym bleiben)" list="safety-reporters-list" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">📝 Ereignis</div>
+          <div class="field-wrap">
+            <label class="field-label">Was ist fast passiert? <span class="req">*</span></label>
+            <textarea class="field-input" id="nm-description" rows="3" placeholder="Beschreibe was beinahe passiert wäre..."></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field-wrap">
+              <label class="field-label">Tätigkeit zum Zeitpunkt</label>
+              <input class="field-input" id="nm-activity" placeholder="z.B. Gabelstaplerbetrieb">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Beteiligte (optional / anonym)</label>
+              <input class="field-input" id="nm-involved" placeholder="z.B. 2 Personen">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">⚠️ Potenzieller Schaden</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Was hätte passieren können?</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button class="btn-sm" id="nm-pot-injury" onclick="safetyToggleBtn('nm-pot-injury')" style="background:#fee2e2;border-color:#fca5a5;color:#dc2626">🩹 Verletzung</button>
+            <button class="btn-sm" id="nm-pot-damage" onclick="safetyToggleBtn('nm-pot-damage')" style="background:#fef3c7;border-color:#fcd34d;color:#d97706">🔧 Sachschaden</button>
+            <button class="btn-sm" id="nm-pot-env" onclick="safetyToggleBtn('nm-pot-env')" style="background:#d1fae5;border-color:#6ee7b7;color:#059669">🌿 Umweltauswirkung</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">🧠 Erste Ursachen-Einschätzung</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-sm" id="nm-cause-condition" onclick="safetyToggleBtn('nm-cause-condition')">🚧 Unsicherer Zustand</button>
+            <button class="btn-sm" id="nm-cause-behavior" onclick="safetyToggleBtn('nm-cause-behavior')">🧍 Unsicheres Verhalten</button>
+            <button class="btn-sm" id="nm-cause-org" onclick="safetyToggleBtn('nm-cause-org')">📋 Organisation / Prozess</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">🚧 Sofortmaßnahmen</div>
+          <div class="field-wrap">
+            <label class="field-label">Was wurde direkt getan?</label>
+            <textarea class="field-input" id="nm-immediate" rows="2" placeholder="z.B. Bereich gesperrt, Vorgesetzten informiert..."></textarea>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">📷 Fotodokumentation</div>
+          <div id="nm-photos-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+          <input type="file" id="nm-photo-input" accept="image/*" multiple style="display:none" onchange="safetyAddPhotos('nm',event)">
+          <button class="btn-sm" onclick="document.getElementById('nm-photo-input').click()">📷 Foto(s) hinzufügen</button>
+        </div>
+
+        <button class="btn-primary" onclick="safetySaveNearMiss()" style="background:#d97706;border-color:#d97706">⚠️ Near Miss speichern</button>
+      </div>
+
+      <!-- BEOBACHTUNG MELDEN -->
+      <div class="s5-section" id="safety-sec-observation">
+        <div class="s5-section-header">
+          <div class="s5-section-title">👁 Beobachtung (Observation)</div>
+        </div>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:#166534">
+          🎯 <strong>Ziel:</strong> Gefahren früh erkennen – in unter 1 Minute melden!
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">📍 Standort & Melder</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field-wrap">
+              <label class="field-label">Standort / Bereich <span class="req">*</span></label>
+              <input class="field-input" id="obs-location" placeholder="z.B. Lager / Tor 3" list="safety-locations-list" autocomplete="off">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Melder (optional)</label>
+              <input class="field-input" id="obs-reporter" placeholder="Name oder anonym" list="safety-reporters-list" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">🏷️ Kategorie <span class="req">*</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div id="obs-cat-condition" onclick="safetyObsCat('condition')" style="border:2px solid #e5e7eb;border-radius:10px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .15s">
+              <div style="font-size:24px;margin-bottom:4px">🚧</div>
+              <div style="font-size:12px;font-weight:600">Unsicherer Zustand</div>
+            </div>
+            <div id="obs-cat-behavior" onclick="safetyObsCat('behavior')" style="border:2px solid #e5e7eb;border-radius:10px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .15s">
+              <div style="font-size:24px;margin-bottom:4px">🧍</div>
+              <div style="font-size:12px;font-weight:600">Unsicheres Verhalten</div>
+            </div>
+            <div id="obs-cat-idea" onclick="safetyObsCat('idea')" style="border:2px solid #e5e7eb;border-radius:10px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .15s">
+              <div style="font-size:24px;margin-bottom:4px">💡</div>
+              <div style="font-size:12px;font-weight:600">Verbesserungsidee</div>
+            </div>
+          </div>
+          <input type="hidden" id="obs-category" value="">
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">📝 Was wurde beobachtet? <span class="req">*</span></div>
+          <div class="field-wrap" style="margin-bottom:0">
+            <textarea class="field-input" id="obs-description" rows="3" placeholder="Kurze Beschreibung – was hast du gesehen?"></textarea>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">📷 Foto (empfohlen)</div>
+          <div id="obs-photos-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+          <input type="file" id="obs-photo-input" accept="image/*" multiple style="display:none" onchange="safetyAddPhotos('obs',event)">
+          <button class="btn-sm" onclick="document.getElementById('obs-photo-input').click()">📷 Foto hinzufügen</button>
+        </div>
+
+        <button class="btn-primary" onclick="safetySaveObservation()" style="background:#059669;border-color:#059669">👁 Beobachtung speichern</button>
+      </div>
+
+    </div><!-- /s5-content -->
+  </div><!-- /s5-layout -->
+</div><!-- /pane-safety -->
+
+<!-- ═══════════════════════════════════
      MOBILER ABARBEITUNGS-SCREEN (QR-Scan)
 ═══════════════════════════════════ -->
 <div id="tpm-scan-screen" style="display:none;position:fixed;inset:0;z-index:9980;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;overflow-y:auto">
@@ -1810,9 +2165,8 @@ const supa = {
 /* ─── 5S Audit DB ─── */
 async function loadDBFromServer() {
   try {
-    // Audits laden
-    const audits = await supa.get('audits?order=created_at.asc');
-    // Settings laden
+    // Alle Audits laden — kein Limit!
+    const audits = await supa.get('audits?order=created_at.desc&limit=1000');
     const settings = await supa.get('settings?select=key,value');
     const settingsMap = {};
     (settings||[]).forEach(s => settingsMap[s.key] = s.value);
@@ -1822,30 +2176,42 @@ async function loadDBFromServer() {
       auditors:     settingsMap.auditors     || defaultDB().auditors,
       distribution: settingsMap.distribution || [],
       audits:       (audits||[]).map(a => ({
-        id: a.id, auditor: a.auditor, date: a.date,
-        location: a.location, dept: a.dept||'',
+        id:           a.id,
+        auditor:      a.auditor,
+        date:         a.date,
+        location:     a.location,
+        dept:         a.dept||'',
         participants: a.participants||[],
-        answers: a.answers||{}, actions: a.actions||[],
-        score: a.score||0, status: a.status||'complete',
-        completedAt: a.completed_at,
+        answers:      a.answers||{},
+        actions:      a.actions||[],
+        score:        a.score||0,
+        status:       a.status||'complete',
+        completedAt:  a.completed_at,
+        created_at:   a.created_at,
       })),
     };
     console.log('✅ DB von Supabase geladen:', db.audits.length, 'Audits');
   } catch(e) {
     console.warn('⚠️ Supabase nicht erreichbar, nutze localStorage:', e.message);
-    db = loadDB(); // Fallback
+    db = loadDB();
   }
 }
 
 async function saveAuditToServer(audit) {
   try {
     await supa.post('audits', {
-      id: audit.id, auditor: audit.auditor, date: audit.date,
-      location: audit.location, dept: audit.dept||'',
+      id: audit.id,
+      auditor: audit.auditor,
+      date: audit.date,
+      location: audit.location,
+      dept: audit.dept||'',
       participants: audit.participants||[],
-      answers: audit.answers||{}, actions: audit.actions||[],
-      score: audit.score||0, status: audit.status||'complete',
-      completed_at: audit.completedAt ? new Date(audit.completedAt).toISOString() : null,
+      answers: audit.answers||{},
+      actions: audit.actions||[],
+      score: audit.score||0,
+      status: audit.status||'complete',
+      completed_at: audit.completedAt ? new Date(audit.completedAt).toISOString() : new Date().toISOString(),
+      created_at: audit.created_at || new Date().toISOString(),
     });
     console.log('✅ Audit gespeichert in Supabase:', audit.id);
   } catch(e) {
@@ -1975,6 +2341,7 @@ function showPane(pane) {
   if (pane === 'landing') renderLanding();
   if (pane === '5s')  { s5ShowSection('audits'); }
   if (pane === 'tpm') { tpmLoad().then(() => { tpmShowSection('overview'); tpmCheckQRParam(); }); }
+  if (pane === 'safety') { safetyLoad(); }
 }
 
 /* ─── LANDING ─── */
@@ -3828,8 +4195,8 @@ function renderSetup() {
   document.getElementById('deptWrap').style.display = 'none';
   document.getElementById('participantChips').innerHTML = '';
   document.getElementById('participantInput').value = '';
-  if (!cur) cur = { id: 'audit_'+Date.now(), participants: [], answers: {} };
-  else { cur.participants = []; cur.answers = {}; }
+  // Immer neues Audit mit eindeutiger ID erstellen
+  cur = { id: 'audit_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), participants: [], answers: {}, created_at: new Date().toISOString() };
   checkSetupReady();
 }
 
@@ -6544,6 +6911,382 @@ function tpmGetMachineStatus(machineId) {
   if (done===0) return 'red';
   if (done<total) return 'yellow';
   return 'green';
+}
+
+/* ═══════════════════════════════════════════════════
+   🦺  SAFETY MODULE
+═══════════════════════════════════════════════════ */
+
+let safetyDB = { incidents: [], nearmisses: [], observations: [] };
+let _safetyLoaded = false;
+// Temp photo arrays
+let _incPhotos = [], _nmPhotos = [], _obsPhotos = [];
+
+async function safetyLoad() {
+  try {
+    const [inc, nm, obs] = await Promise.all([
+      supa.get('safety_incidents?order=created_at.desc'),
+      supa.get('safety_nearmisses?order=created_at.desc'),
+      supa.get('safety_observations?order=created_at.desc'),
+    ]);
+    if (inc) safetyDB.incidents    = inc;
+    if (nm)  safetyDB.nearmisses   = nm;
+    if (obs) safetyDB.observations = obs;
+  } catch(e) { /* offline ok */ }
+  safetyBuildLocationList();
+  safetyShowSection('overview');
+  safetyUpdateBadge();
+}
+
+function safetyBuildLocationList() {
+  const dl = document.getElementById('safety-locations-list');
+  if (!dl) return;
+
+  // Bereiche aus TPM (tpmDB.machines)
+  const tpmOptions = (tpmDB.machines || []).flatMap(m => {
+    const opts = [];
+    if (m.name)     opts.push(m.name);
+    if (m.area)     opts.push(m.area);
+    if (m.location) opts.push(m.location);
+    if (m.ort)      opts.push(m.ort);
+    return opts;
+  });
+
+  // Standorte aus 5S (db.locations)
+  const s5Options = (db?.locations || []).map(l => l.name).filter(Boolean);
+
+  // Eigene Einträge aus bisherigen Safety-Meldungen
+  const safetyOptions = [
+    ...safetyDB.incidents.map(r => r.location),
+    ...safetyDB.nearmisses.map(r => r.location),
+    ...safetyDB.observations.map(r => r.location),
+  ].filter(Boolean);
+
+  // Zusammenführen & deduplizieren
+  const all = [...new Set([...tpmOptions, ...s5Options, ...safetyOptions])].filter(Boolean).sort();
+
+  dl.innerHTML = all.map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+
+  // Reporter-Datalist aus 5S Auditoren
+  const rl = document.getElementById('safety-reporters-list');
+  if (rl) {
+    const reporters = [...new Set([
+      ...(db?.auditors || []).map(a => a.name),
+      ...safetyDB.incidents.map(r => r.reporter),
+      ...safetyDB.nearmisses.map(r => r.reporter),
+    ])].filter(Boolean).sort();
+    rl.innerHTML = reporters.map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+  }
+}
+
+function safetyUpdateBadge() {
+  const total = safetyDB.incidents.length + safetyDB.nearmisses.length + safetyDB.observations.length;
+  const badge = document.getElementById('nav-safety-badge');
+  if (badge) badge.textContent = total || '';
+  document.getElementById('safety-kpi-incidents').textContent   = safetyDB.incidents.length;
+  document.getElementById('safety-kpi-nearmiss').textContent    = safetyDB.nearmisses.length;
+  document.getElementById('safety-kpi-observations').textContent= safetyDB.observations.length;
+  document.getElementById('safety-badge-total').textContent     = total || '';
+}
+
+function safetyShowSection(sec) {
+  document.querySelectorAll('#pane-safety .s5-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('#pane-safety .s5-navitem').forEach(b => b.classList.remove('active'));
+  document.getElementById('safety-sec-' + sec)?.classList.add('active');
+  document.getElementById('safety-snav-' + sec)?.classList.add('active');
+  if (sec === 'overview') safetyRenderList();
+  if (sec === 'incident') safetyInitForm('inc');
+  if (sec === 'nearmiss') safetyInitForm('nm');
+  if (sec === 'observation') safetyInitForm('obs');
+}
+
+function safetyInitForm(prefix) {
+  // Set current datetime
+  const now = new Date();
+  const local = new Date(now - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const dtEl = document.getElementById(prefix + '-datetime');
+  if (dtEl && !dtEl.value) dtEl.value = local;
+  // Reset photo arrays
+  if (prefix === 'inc') _incPhotos = [];
+  if (prefix === 'nm')  _nmPhotos  = [];
+  if (prefix === 'obs') _obsPhotos = [];
+  safetyRenderPhotoGrid(prefix);
+}
+
+function safetyAddPhotos(prefix, e) {
+  const files = [...e.target.files];
+  const arr = prefix==='inc' ? _incPhotos : prefix==='nm' ? _nmPhotos : _obsPhotos;
+  let pending = files.length;
+  files.forEach(f => {
+    const r = new FileReader();
+    r.onload = ev => {
+      compressImage(ev.target.result, 800, 0.72, compressed => {
+        arr.push(compressed);
+        pending--;
+        if (pending === 0) safetyRenderPhotoGrid(prefix);
+      });
+    };
+    r.readAsDataURL(f);
+  });
+  e.target.value = '';
+}
+
+function safetyRenderPhotoGrid(prefix) {
+  const arr = prefix==='inc' ? _incPhotos : prefix==='nm' ? _nmPhotos : _obsPhotos;
+  const el  = document.getElementById(prefix + '-photos-grid');
+  if (!el) return;
+  el.innerHTML = arr.map((p,i) => `
+    <div style="position:relative">
+      <img src="${p}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer"
+        onclick="safetyOpenLightbox('${prefix}',${i})">
+      <button onclick="safetyRemovePhoto('${prefix}',${i})"
+        style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+
+function safetyRemovePhoto(prefix, idx) {
+  const arr = prefix==='inc' ? _incPhotos : prefix==='nm' ? _nmPhotos : _obsPhotos;
+  arr.splice(idx,1);
+  safetyRenderPhotoGrid(prefix);
+}
+
+function safetyOpenLightbox(prefix, idx) {
+  const arr = prefix==='inc' ? _incPhotos : prefix==='nm' ? _nmPhotos : _obsPhotos;
+  tpmOpenLightbox(arr[idx]);
+}
+
+function safetyToggleBtn(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.selected = el.dataset.selected === '1' ? '0' : '1';
+  el.style.outline = el.dataset.selected === '1' ? '2px solid #111' : 'none';
+  el.style.fontWeight = el.dataset.selected === '1' ? '700' : 'normal';
+}
+
+function safetyBtnSelected(id) {
+  return document.getElementById(id)?.dataset.selected === '1';
+}
+
+let _obsSelectedCat = '';
+function safetyObsCat(cat) {
+  _obsSelectedCat = cat;
+  ['condition','behavior','idea'].forEach(c => {
+    const el = document.getElementById('obs-cat-' + c);
+    if (!el) return;
+    if (c === cat) {
+      el.style.borderColor = '#111';
+      el.style.background  = '#f3f4f6';
+    } else {
+      el.style.borderColor = '#e5e7eb';
+      el.style.background  = '#fff';
+    }
+  });
+  document.getElementById('obs-category').value = cat;
+}
+
+function safetyVal(id) { return document.getElementById(id)?.value?.trim() || ''; }
+function safetyReq(id, label) {
+  const v = safetyVal(id);
+  if (!v) {
+    const el = document.getElementById(id);
+    if (el) { el.style.borderColor='#dc2626'; setTimeout(()=>el.style.borderColor='',1500); el.focus(); }
+    tpmToast('⚠️ Bitte ' + label + ' ausfüllen');
+    return false;
+  }
+  return true;
+}
+
+async function safetySaveIncident() {
+  if (!safetyReq('inc-datetime','Datum & Uhrzeit')) return;
+  if (!safetyReq('inc-location','Standort')) return;
+  if (!safetyReq('inc-reporter','Melder')) return;
+  if (!safetyReq('inc-victim','Name der verunfallten Person')) return;
+  if (!safetyReq('inc-description','Unfallbeschreibung')) return;
+  if (!safetyReq('inc-severity','Schweregrad')) return;
+
+  const record = {
+    id: 'inc-' + Date.now(),
+    type: 'incident',
+    datetime: safetyVal('inc-datetime'),
+    location: safetyVal('inc-location'),
+    area: safetyVal('inc-area'),
+    workplace: safetyVal('inc-workplace'),
+    reporter: safetyVal('inc-reporter'),
+    reporter_nr: safetyVal('inc-reporter-nr'),
+    victim: safetyVal('inc-victim'),
+    victim_dept: safetyVal('inc-victim-dept'),
+    victim_type: safetyVal('inc-victim-type'),
+    description: safetyVal('inc-description'),
+    activity: safetyVal('inc-activity'),
+    incident_type: safetyVal('inc-type'),
+    injury_type: safetyVal('inc-injury-type'),
+    body_part: safetyVal('inc-body-part'),
+    severity: safetyVal('inc-severity'),
+    photos: JSON.stringify(_incPhotos),
+    created_at: new Date().toISOString(),
+  };
+
+  const ok = await supa.post('safety_incidents', record);
+  if (ok !== null) {
+    safetyDB.incidents.unshift(record);
+    tpmToast('✅ Unfall gespeichert');
+    safetyShowSection('overview');
+    safetyUpdateBadge();
+  }
+}
+
+async function safetySaveNearMiss() {
+  if (!safetyReq('nm-datetime','Datum & Uhrzeit')) return;
+  if (!safetyReq('nm-location','Standort')) return;
+  if (!safetyReq('nm-reporter','Melder')) return;
+  if (!safetyReq('nm-description','Beschreibung')) return;
+
+  const potentialDamage = [
+    safetyBtnSelected('nm-pot-injury')  ? 'Verletzung'       : null,
+    safetyBtnSelected('nm-pot-damage')  ? 'Sachschaden'       : null,
+    safetyBtnSelected('nm-pot-env')     ? 'Umweltauswirkung'  : null,
+  ].filter(Boolean).join(', ');
+
+  const causes = [
+    safetyBtnSelected('nm-cause-condition') ? 'Unsicherer Zustand' : null,
+    safetyBtnSelected('nm-cause-behavior')  ? 'Unsicheres Verhalten' : null,
+    safetyBtnSelected('nm-cause-org')       ? 'Organisation/Prozess' : null,
+  ].filter(Boolean).join(', ');
+
+  const record = {
+    id: 'nm-' + Date.now(),
+    type: 'nearmiss',
+    datetime: safetyVal('nm-datetime'),
+    location: safetyVal('nm-location'),
+    reporter: safetyVal('nm-reporter'),
+    description: safetyVal('nm-description'),
+    activity: safetyVal('nm-activity'),
+    involved: safetyVal('nm-involved'),
+    potential_damage: potentialDamage,
+    causes,
+    immediate_action: safetyVal('nm-immediate'),
+    photos: JSON.stringify(_nmPhotos),
+    created_at: new Date().toISOString(),
+  };
+
+  const ok = await supa.post('safety_nearmisses', record);
+  if (ok !== null) {
+    safetyDB.nearmisses.unshift(record);
+    tpmToast('✅ Near Miss gespeichert');
+    safetyShowSection('overview');
+    safetyUpdateBadge();
+  }
+}
+
+async function safetySaveObservation() {
+  if (!safetyReq('obs-location','Standort')) return;
+  if (!_obsSelectedCat) { tpmToast('⚠️ Bitte Kategorie wählen'); return; }
+  if (!safetyReq('obs-description','Beobachtung')) return;
+
+  const record = {
+    id: 'obs-' + Date.now(),
+    type: 'observation',
+    datetime: new Date().toISOString(),
+    location: safetyVal('obs-location'),
+    reporter: safetyVal('obs-reporter') || 'Anonym',
+    category: _obsSelectedCat,
+    description: safetyVal('obs-description'),
+    photos: JSON.stringify(_obsPhotos),
+    created_at: new Date().toISOString(),
+  };
+
+  const ok = await supa.post('safety_observations', record);
+  if (ok !== null) {
+    safetyDB.observations.unshift(record);
+    tpmToast('✅ Beobachtung gespeichert');
+    safetyShowSection('overview');
+    safetyUpdateBadge();
+  }
+}
+
+function safetyRenderList() {
+  const el = document.getElementById('safety-list-content');
+  if (!el) return;
+
+  // Merge all entries sorted by created_at desc
+  const all = [
+    ...safetyDB.incidents.map(r    => ({ ...r, _kind:'incident'    })),
+    ...safetyDB.nearmisses.map(r   => ({ ...r, _kind:'nearmiss'    })),
+    ...safetyDB.observations.map(r => ({ ...r, _kind:'observation' })),
+  ].sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''));
+
+  if (!all.length) {
+    el.innerHTML = '<div class="empty-hint">Noch keine Meldungen vorhanden.<br><small style="color:#9ca3af">Nutze die Sidebar um einen Vorfall zu melden.</small></div>';
+    return;
+  }
+
+  const kindConfig = {
+    incident:    { label:'🚨 Unfall',         bg:'#fee2e2', border:'#fca5a5', color:'#dc2626' },
+    nearmiss:    { label:'⚠️ Near Miss',       bg:'#fef3c7', border:'#fcd34d', color:'#d97706' },
+    observation: { label:'👁 Beobachtung',     bg:'#d1fae5', border:'#6ee7b7', color:'#059669' },
+  };
+
+  const severityLabels = { first_aid:'Erste Hilfe', doctor:'Arztbehandlung', lost_time:'Ausfall/AU', hospital:'Krankenhaus' };
+  const catLabels = { condition:'Unsicherer Zustand', behavior:'Unsicheres Verhalten', idea:'Verbesserungsidee' };
+
+  el.innerHTML = all.map(r => {
+    const cfg = kindConfig[r._kind];
+    const photos = (() => { try { return JSON.parse(r.photos||'[]'); } catch { return []; } })();
+    const dt = r.datetime ? new Date(r.datetime).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '–';
+
+    let details = '';
+    if (r._kind === 'incident') {
+      details = `<div style="font-size:12px;color:#6b7280;margin-top:4px">
+        ${r.victim ? `👤 ${r.victim}` : ''} ${r.severity ? '· ' + (severityLabels[r.severity]||r.severity) : ''}
+        ${r.injury_type ? ' · ' + r.injury_type : ''} ${r.body_part ? '(' + r.body_part + ')' : ''}
+      </div>`;
+    } else if (r._kind === 'nearmiss') {
+      details = `<div style="font-size:12px;color:#6b7280;margin-top:4px">
+        ${r.potential_damage ? '⚡ ' + r.potential_damage : ''}
+        ${r.causes ? ' · ' + r.causes : ''}
+      </div>`;
+    } else {
+      details = `<div style="font-size:12px;color:#6b7280;margin-top:4px">
+        🏷️ ${catLabels[r.category]||r.category||'–'}
+      </div>`;
+    }
+
+    return `<div style="background:${cfg.bg};border:1.5px solid ${cfg.border};border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:11px;font-weight:700;color:${cfg.color};background:${cfg.border};padding:2px 8px;border-radius:20px">${cfg.label}</span>
+            <span style="font-size:11px;color:#9ca3af">${dt}</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:2px">${r.location||'–'}</div>
+          <div style="font-size:13px;color:#374151">${(r.description||'').substring(0,120)}${(r.description||'').length>120?'…':''}</div>
+          ${details}
+          ${r.reporter ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px">Melder: ${r.reporter}</div>` : ''}
+          ${photos.length ? `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+            ${photos.map(p=>`<img src="${p}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid #e5e7eb" onclick="tpmOpenLightbox('${p}')">`).join('')}
+          </div>` : ''}
+        </div>
+        <button onclick="safetyDelete('${r._kind}','${r.id}')"
+          style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:16px;flex-shrink:0"
+          onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#d1d5db'" title="Löschen">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function safetyDelete(kind, id) {
+  if (!confirm('Eintrag löschen?')) return;
+  const tableMap = { incident:'safety_incidents', nearmiss:'safety_nearmisses', observation:'safety_observations' };
+  const table = tableMap[kind];
+  const ok = await tpmDeleteRecord(table, id);
+  if (ok) {
+    if (kind==='incident')    safetyDB.incidents    = safetyDB.incidents.filter(r=>r.id!==id);
+    if (kind==='nearmiss')    safetyDB.nearmisses   = safetyDB.nearmisses.filter(r=>r.id!==id);
+    if (kind==='observation') safetyDB.observations = safetyDB.observations.filter(r=>r.id!==id);
+    safetyRenderList();
+    safetyUpdateBadge();
+    tpmToast('Eintrag gelöscht');
+  }
 }
 </script>
 <style>
