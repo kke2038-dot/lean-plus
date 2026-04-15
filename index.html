@@ -7126,12 +7126,19 @@ async function safetySaveIncident() {
     created_at: new Date().toISOString(),
   };
 
-  const ok = await supa.post('safety_incidents', record);
-  if (ok !== null) {
+  try {
+    const result = await supa.post('safety_incidents', record);
+    if (result === null || result === undefined) {
+      tpmToast('❌ Fehler: Tabelle safety_incidents nicht gefunden. Bitte SQL in Supabase ausführen.');
+      return;
+    }
     safetyDB.incidents.unshift(record);
     tpmToast('✅ Unfall gespeichert');
     safetyShowSection('overview');
     safetyUpdateBadge();
+  } catch(e) {
+    tpmToast('❌ Speichern fehlgeschlagen: ' + (e.message || 'Unbekannter Fehler'));
+    console.error('Safety Incident Fehler:', e);
   }
 }
 
@@ -7169,12 +7176,19 @@ async function safetySaveNearMiss() {
     created_at: new Date().toISOString(),
   };
 
-  const ok = await supa.post('safety_nearmisses', record);
-  if (ok !== null) {
+  try {
+    const result = await supa.post('safety_nearmisses', record);
+    if (result === null || result === undefined) {
+      tpmToast('❌ Fehler: Tabelle safety_nearmisses nicht gefunden. Bitte SQL in Supabase ausführen.');
+      return;
+    }
     safetyDB.nearmisses.unshift(record);
     tpmToast('✅ Near Miss gespeichert');
     safetyShowSection('overview');
     safetyUpdateBadge();
+  } catch(e) {
+    tpmToast('❌ Speichern fehlgeschlagen: ' + (e.message || 'Unbekannter Fehler'));
+    console.error('Near Miss Fehler:', e);
   }
 }
 
@@ -7195,12 +7209,19 @@ async function safetySaveObservation() {
     created_at: new Date().toISOString(),
   };
 
-  const ok = await supa.post('safety_observations', record);
-  if (ok !== null) {
+  try {
+    const result = await supa.post('safety_observations', record);
+    if (result === null || result === undefined) {
+      tpmToast('❌ Fehler: Tabelle safety_observations nicht gefunden. Bitte SQL in Supabase ausführen.');
+      return;
+    }
     safetyDB.observations.unshift(record);
     tpmToast('✅ Beobachtung gespeichert');
     safetyShowSection('overview');
     safetyUpdateBadge();
+  } catch(e) {
+    tpmToast('❌ Speichern fehlgeschlagen: ' + (e.message || 'Unbekannter Fehler'));
+    console.error('Observation Fehler:', e);
   }
 }
 
