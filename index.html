@@ -945,7 +945,7 @@ body {
 <div class="lean-pane tsa-pane" id="pane-tsa">
   
 <!-- Hidden camera/file input -->
-<input type="file" id="tsa_tsa_camInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(event)">
+<input type="file" id="tsa_tsa_camInput" accept="image/*" style="display:none" onchange="onPhotoSelected(event)">
 <!-- Lightbox -->
 <div class="lightbox" id="tsa_lightbox" onclick="closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
@@ -1164,8 +1164,8 @@ body {
 <div class="lean-pane audit-pane" id="pane-5s">
 
 <!-- Hidden inputs -->
-<input type="file" id="camInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoCapture(event)">
-<input type="file" id="galInput" accept="image/*" style="display:none" onchange="onPhotoCapture(event)">
+<input type="file" id="camInput" accept="image/*" style="display:none" onchange="onPhotoCapture(event)">
+<input type="file" id="galInput" accept="image/*" multiple style="display:none" onchange="onPhotoCapture(event)">
 
 <!-- Lightbox -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -1365,6 +1365,7 @@ body {
           <div class="s5-section-sub" id="resultMeta"></div>
         </div>
         <div class="rev-actions">
+          <button class="btn-sm" onclick="auditEditMode()" style="background:#f3f4f6;border-color:#e5e7eb">✏️ Bearbeiten</button>
           <button class="btn-sm blue" onclick="generatePDF()">📄 PDF</button>
           <button class="btn-sm green" onclick="saveAudit()">Speichern</button>
         </div>
@@ -1376,6 +1377,7 @@ body {
         <button class="sub-tab" id="tab-actions" onclick="switchTab('actions')">Maßnahmen</button>
         <button class="sub-tab" id="tab-photos"  onclick="switchTab('photos')">Fotos</button>
         <button class="sub-tab" id="tab-trend"   onclick="switchTab('trend')">📈 Entwicklung</button>
+        <button class="sub-tab" id="tab-edit"    onclick="switchTab('edit')" style="display:none">✏️ Ergänzen</button>
       </div>
 
       <div class="sub-panel active" id="panel-summary">
@@ -1429,6 +1431,14 @@ body {
           <button class="btn-sm blue" onclick="generateTrendPDF()">📄 Aushang PDF</button>
         </div>
         <div id="trendContent"></div>
+      </div>
+
+      <!-- Edit Panel -->
+      <div class="sub-panel" id="panel-edit">
+        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:#92400e">
+          ✏️ Hier kannst du nachträglich Fotos, Kommentare und Maßnahmen zu einzelnen Fragen ergänzen.
+        </div>
+        <div id="panel-edit-content"></div>
       </div>
     </div>
 
@@ -1801,8 +1811,93 @@ body {
             <div style="font-size:11px;color:#059669;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Beobachtungen</div>
           </div>
         </div>
-        <div id="safety-list-content">
-          <div class="empty-hint">Noch keine Meldungen vorhanden.<br><small style="color:#9ca3af">Nutze die Sidebar um einen Vorfall zu melden.</small></div>
+
+        <!-- View Tabs -->
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button id="safety-view-list-btn" onclick="safetySetView('list')"
+            style="padding:6px 14px;border-radius:20px;border:1px solid #111;background:#111;color:#fff;font-size:12px;cursor:pointer;font-family:inherit">
+            📋 Meldungen
+          </button>
+          <button id="safety-view-body-btn" onclick="safetySetView('body')"
+            style="padding:6px 14px;border-radius:20px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;cursor:pointer;font-family:inherit">
+            🧍 Körperkarte
+          </button>
+          <button id="safety-view-location-btn" onclick="safetySetView('location')"
+            style="padding:6px 14px;border-radius:20px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;cursor:pointer;font-family:inherit">
+            📍 Nach Standort
+          </button>
+        </div>
+
+        <!-- Meldungsliste -->
+        <div id="safety-view-list">
+          <div id="safety-list-content">
+            <div class="empty-hint">Noch keine Meldungen vorhanden.<br><small style="color:#9ca3af">Nutze die Sidebar um einen Vorfall zu melden.</small></div>
+          </div>
+        </div>
+
+        <!-- Körperkarte -->
+        <div id="safety-view-body" style="display:none">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+            <!-- SVG Figur -->
+            <div style="flex:0 0 220px">
+              <svg id="safety-body-svg" viewBox="0 0 220 420" style="width:100%;max-width:220px">
+                <!-- Kopf -->
+                <ellipse id="bp-head" cx="110" cy="45" rx="30" ry="34" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Hals -->
+                <rect id="bp-neck" x="100" y="75" width="20" height="18" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Rumpf -->
+                <rect id="bp-torso" x="72" y="91" width="76" height="90" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Arm links -->
+                <rect id="bp-arm-l" x="38" y="94" width="32" height="80" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Arm rechts -->
+                <rect id="bp-arm-r" x="150" y="94" width="32" height="80" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Hand links -->
+                <ellipse id="bp-hand-l" cx="54" cy="188" rx="14" ry="18" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Hand rechts -->
+                <ellipse id="bp-hand-r" cx="166" cy="188" rx="14" ry="18" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Bein links -->
+                <rect id="bp-leg-l" x="72" y="180" width="34" height="110" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Bein rechts -->
+                <rect id="bp-leg-r" x="114" y="180" width="34" height="110" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Fuss links -->
+                <ellipse id="bp-foot-l" cx="89" cy="300" rx="20" ry="12" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Fuss rechts -->
+                <ellipse id="bp-foot-r" cx="131" cy="300" rx="20" ry="12" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+                <!-- Hotspot Layer — wird per JS befüllt -->
+                <g id="safety-hotspot-layer"></g>
+                <!-- Tooltip -->
+                <g id="safety-body-tooltip" style="display:none">
+                  <rect id="sbt-bg" x="0" y="0" width="120" height="36" rx="6" fill="#111" opacity="0.88"/>
+                  <text id="sbt-text1" x="60" y="15" text-anchor="middle" font-size="11" fill="white" font-weight="500"></text>
+                  <text id="sbt-text2" x="60" y="28" text-anchor="middle" font-size="10" fill="#d1d5db"></text>
+                </g>
+              </svg>
+            </div>
+            <!-- Legende & Details -->
+            <div style="flex:1;min-width:160px">
+              <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#111">Verletzungsstellen</div>
+              <div id="safety-body-legend" style="font-size:12px;color:#6b7280">Noch keine Verletzungsdaten vorhanden.</div>
+              <div style="margin-top:16px">
+                <div style="font-size:11px;color:#9ca3af;margin-bottom:6px">Legende</div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <div style="width:12px;height:12px;border-radius:50%;background:#ef4444;opacity:.85;flex-shrink:0"></div>
+                  <span style="font-size:12px;color:#374151">Unfall (meldepflichtig)</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <div style="width:12px;height:12px;border-radius:50%;background:#f59e0b;opacity:.85;flex-shrink:0"></div>
+                  <span style="font-size:12px;color:#374151">Near Miss</span>
+                </div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:10px">Kreisgrößen = Häufigkeit</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nach Standort -->
+        <div id="safety-view-location" style="display:none">
+          <div id="safety-location-content">
+            <div class="empty-hint">Noch keine Standortdaten vorhanden.</div>
+          </div>
         </div>
       </div>
 
@@ -2628,6 +2723,18 @@ function startStudy() {
   document.getElementById('tsa_recMeta').textContent = (tsa_cur.author||'Unbekannt') + ' · ' + tsa_cur.date;
   selCatV = null; selTW = [];
   resetTimer(); renderTaList(); tsaGo('tsa_s-record');
+
+  // Timer sofort starten
+  setTimeout(() => {
+    tStart = Date.now();
+    tElapsed = 0;
+    tInt = setInterval(() => { tElapsed = Date.now()-tStart; document.getElementById('timerDisp').textContent = fmt(tElapsed); }, 500);
+    tRunning = true;
+    document.getElementById('timerBtn').textContent = 'Stop';
+    document.getElementById('timerBtn').className = 'btn-sm red';
+    document.getElementById('timerInfo').innerHTML = '<strong>Erste Tätigkeit…</strong>Stoppuhr läuft';
+    document.getElementById('taInput').focus();
+  }, 100);
 }
 
 /* ───────── Classification ───────── */
@@ -2743,6 +2850,20 @@ function addTa() {
   document.getElementById('twWrap').style.display = 'none';
   clearPhoto();
   resetTimer(); checkAdd(); renderTaList();
+
+  // ── Nächste Aufgabe sofort starten ──
+  // Kurze Verzögerung damit das UI sich aktualisiert
+  setTimeout(() => {
+    tStart = Date.now();
+    tElapsed = 0;
+    tInt = setInterval(() => { tElapsed = Date.now()-tStart; document.getElementById('timerDisp').textContent = fmt(tElapsed); }, 500);
+    tRunning = true;
+    document.getElementById('timerBtn').textContent = 'Stop';
+    document.getElementById('timerBtn').className = 'btn-sm red';
+    document.getElementById('timerInfo').innerHTML = '<strong>Nächste Tätigkeit…</strong>Stoppuhr läuft';
+    // Fokus auf das Eingabefeld für die nächste Aufgabe
+    document.getElementById('taInput').focus();
+  }, 50);
 }
 
 function delTa(id) { tsa_cur.items = tsa_cur.items.filter(i => i.id !== id); renderTaList(); }
@@ -3598,19 +3719,22 @@ function closeLocationDrilldown() {
 
 
 function switchTab(tab) {
-  // Destroy trend charts when leaving the trend tab
   if (tab !== 'trend') {
     if (window._trendLineChart)  { try { window._trendLineChart.destroy();  } catch(e){} window._trendLineChart  = null; }
     if (window._trendRadarChart) { try { window._trendRadarChart.destroy(); } catch(e){} window._trendRadarChart = null; }
   }
-  ['summary','detail','actions','photos','trend'].forEach(t => {
-    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
-    document.getElementById('panel-'+t).classList.toggle('active', t===tab);
+  const allTabs = ['summary','detail','actions','photos','trend','edit'];
+  allTabs.forEach(t => {
+    const tabEl   = document.getElementById('tab-'+t);
+    const panelEl = document.getElementById('panel-'+t);
+    if (tabEl)   tabEl.classList.toggle('active', t===tab);
+    if (panelEl) panelEl.classList.toggle('active', t===tab);
   });
   if (tab === 'detail')  renderDetail();
   if (tab === 'actions') renderActionsPanel();
   if (tab === 'photos')  renderPhotosPanel();
   if (tab === 'trend')   renderTrendPanel();
+  if (tab === 'edit')    renderEditPanel();
 }
 
 function switchAdminTab(tab) {
@@ -3780,6 +3904,124 @@ function openAudit(id) {
   updateS5Badge();
   s5ShowSection('result');
   showResult();
+}
+
+function auditEditMode() {
+  // Edit-Tab einblenden und öffnen
+  const tab = document.getElementById('tab-edit');
+  if (tab) tab.style.display = '';
+  switchTab('edit');
+  renderEditPanel();
+}
+
+function renderEditPanel() {
+  const el = document.getElementById('panel-edit-content');
+  if (!el || !cur) return;
+
+  // Hidden input für Foto-Upload im Edit-Modus
+  let inp = document.getElementById('audit-edit-photo-input');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.id = 'audit-edit-photo-input';
+    inp.accept = 'image/*'; inp.multiple = true;
+    inp.style.display = 'none';
+    inp.onchange = auditEditPhotoSelected;
+    document.body.appendChild(inp);
+  }
+
+  el.innerHTML = db.questions.map(q => {
+    const ans = cur.answers?.[q.id] || { stars:0, na:false, comment:'', photos:[], actions:[] };
+    const photos = ans.photos || [];
+    const catColors = {'1S':'#ef4444','2S':'#f97316','3S':'#eab308','4S':'#3b82f6','5S':'#059669'};
+    const cc = catColors[q.cat] || '#9ca3af';
+
+    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="background:${cc};color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${q.cat}</span>
+        <span style="font-size:13px;font-weight:500;color:#111">${q.text}</span>
+      </div>
+
+      <!-- Kommentar -->
+      <div class="field-wrap" style="margin-bottom:8px">
+        <label class="field-label" style="font-size:11px">Kommentar / Notiz</label>
+        <textarea class="field-input" id="edit-comment-${q.id}" rows="2"
+          style="font-size:13px"
+          placeholder="Kommentar ergänzen..."
+          onchange="auditEditSaveComment(${q.id},this.value)">${ans.comment||''}</textarea>
+      </div>
+
+      <!-- Fotos -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="edit-photos-${q.id}">
+        ${photos.map((p,i) => `
+          <div style="position:relative">
+            <img src="${p}" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;cursor:pointer"
+              onclick="openLightbox('${p}')">
+            <button onclick="auditEditRemovePhoto(${q.id},${i})"
+              style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>
+          </div>`).join('')}
+      </div>
+      <button class="btn-sm" onclick="auditEditPickPhoto(${q.id})" style="font-size:12px">📷 Foto hinzufügen</button>
+    </div>`;
+  }).join('') + `
+  <button class="btn-primary" onclick="auditEditSaveAll()" style="margin-top:8px">✅ Alle Änderungen speichern</button>`;
+}
+
+let _auditEditTargetQid = null;
+function auditEditPickPhoto(qid) {
+  _auditEditTargetQid = qid;
+  const inp = document.getElementById('audit-edit-photo-input');
+  if (inp) { inp.value=''; inp.click(); }
+}
+
+function auditEditPhotoSelected(e) {
+  const qid = _auditEditTargetQid;
+  if (!qid || !cur?.answers?.[qid]) {
+    if (!cur.answers[qid]) cur.answers[qid] = { stars:0, na:false, comment:'', photos:[], actions:[] };
+  }
+  Array.from(e.target.files).forEach(f => {
+    const r = new FileReader();
+    r.onload = ev => compressImage(ev.target.result, 800, 0.72, compressed => {
+      if (!cur.answers[qid]) cur.answers[qid] = { stars:0, na:false, comment:'', photos:[], actions:[] };
+      cur.answers[qid].photos.push(compressed);
+      // Grid aktualisieren
+      const grid = document.getElementById('edit-photos-' + qid);
+      if (grid) {
+        const idx = cur.answers[qid].photos.length - 1;
+        const div = document.createElement('div');
+        div.style.position = 'relative';
+        div.innerHTML = `<img src="${compressed}" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;cursor:pointer" onclick="openLightbox('${compressed}')">
+          <button onclick="auditEditRemovePhoto(${qid},${idx})" style="position:absolute;top:-6px;right:-6px;background:#dc2626;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">✕</button>`;
+        grid.appendChild(div);
+      }
+      showToast('📷 Foto hinzugefügt');
+    });
+    r.readAsDataURL(f);
+  });
+  e.target.value = '';
+}
+
+function auditEditRemovePhoto(qid, idx) {
+  if (!cur?.answers?.[qid]?.photos) return;
+  cur.answers[qid].photos.splice(idx, 1);
+  renderEditPanel();
+}
+
+function auditEditSaveComment(qid, value) {
+  if (!cur.answers) cur.answers = {};
+  if (!cur.answers[qid]) cur.answers[qid] = { stars:0, na:false, comment:'', photos:[], actions:[] };
+  cur.answers[qid].comment = value;
+}
+
+function auditEditSaveAll() {
+  // Alle Kommentare aus den Textareas einlesen
+  db.questions.forEach(q => {
+    const ta = document.getElementById('edit-comment-' + q.id);
+    if (ta && cur.answers?.[q.id] !== undefined) {
+      cur.answers[q.id].comment = ta.value;
+    }
+  });
+  saveAudit();
+  showToast('✅ Audit aktualisiert');
 }
 
 function deleteAudit(id) {
@@ -4432,13 +4674,13 @@ function photoMenu(qid) {
   photoTarget = qid;
   openModal(`<div class="modal-title">Foto hinzufügen</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <button class="btn-sm" style="height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%" onclick="document.getElementById('camInput').click();closeModal()">
+      <button class="btn-sm" style="height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%" onclick="closeModal();setTimeout(()=>document.getElementById('camInput').click(),100)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        Kamera
+        Kamera / Datei
       </button>
-      <button class="btn-sm" style="height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%" onclick="document.getElementById('galInput').click();closeModal()">
+      <button class="btn-sm" style="height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%" onclick="closeModal();setTimeout(()=>document.getElementById('galInput').click(),100)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        Galerie
+        Mehrere Fotos
       </button>
     </div>`);
 }
@@ -7293,6 +7535,7 @@ function safetyResetForm(prefix) {
 }
 
 function safetyRenderList() {
+  safetyBuildLocationList();
   const el = document.getElementById('safety-list-content');
   if (!el) return;
 
@@ -7375,6 +7618,247 @@ async function safetyDelete(kind, id) {
     safetyUpdateBadge();
     tpmToast('Eintrag gelöscht');
   }
+}
+
+/* ── Safety View Switcher ── */
+let _safetyCurrentView = 'list';
+function safetySetView(view) {
+  _safetyCurrentView = view;
+  ['list','body','location'].forEach(v => {
+    const el = document.getElementById('safety-view-' + v);
+    const btn = document.getElementById('safety-view-' + v + '-btn');
+    if (el)  el.style.display  = v === view ? 'block' : 'none';
+    if (btn) {
+      btn.style.background = v === view ? '#111' : '#fff';
+      btn.style.color      = v === view ? '#fff' : '#374151';
+      btn.style.borderColor= v === view ? '#111' : '#e5e7eb';
+    }
+  });
+  if (view === 'body')     safetyRenderBodyMap();
+  if (view === 'location') safetyRenderLocationView();
+}
+
+/* ── Körperkarte ── */
+const BODY_PARTS = [
+  { id:'head',   label:'Kopf / Gesicht',   cx:110, cy:45  },
+  { id:'neck',   label:'Hals',             cx:110, cy:84  },
+  { id:'torso',  label:'Rumpf / Brust',    cx:110, cy:136 },
+  { id:'arm-l',  label:'Arm links',        cx:54,  cy:134 },
+  { id:'arm-r',  label:'Arm rechts',       cx:166, cy:134 },
+  { id:'hand-l', label:'Hand / Finger links',  cx:54,  cy:188 },
+  { id:'hand-r', label:'Hand / Finger rechts', cx:166, cy:188 },
+  { id:'leg-l',  label:'Bein links',       cx:89,  cy:235 },
+  { id:'leg-r',  label:'Bein rechts',      cx:131, cy:235 },
+  { id:'foot-l', label:'Fuß links',        cx:89,  cy:300 },
+  { id:'foot-r', label:'Fuß rechts',       cx:131, cy:300 },
+];
+
+// Mapping von Supabase body_part Werten zu Körperteilen
+const BODY_PART_MAP = {
+  'Hand / Finger':    ['hand-l','hand-r'],
+  'Kopf / Gesicht':   ['head'],
+  'Auge':             ['head'],
+  'Arm / Ellenbogen': ['arm-l','arm-r'],
+  'Fuß / Zehen':      ['foot-l','foot-r'],
+  'Bein / Knie':      ['leg-l','leg-r'],
+  'Rücken / Wirbelsäule': ['torso'],
+  'Schulter':         ['arm-l','arm-r'],
+  'Sonstiges':        ['torso'],
+};
+
+function safetyRenderBodyMap() {
+  const layer = document.getElementById('safety-hotspot-layer');
+  const legend = document.getElementById('safety-body-legend');
+  if (!layer) return;
+
+  // Zähle Verletzungen pro Körperteil
+  const counts = {}; // { 'hand-l': { incident: 2, nearmiss: 1 } }
+  safetyDB.incidents.forEach(r => {
+    if (!r.body_part) return;
+    const parts = BODY_PART_MAP[r.body_part] || ['torso'];
+    parts.forEach(p => {
+      if (!counts[p]) counts[p] = { incident:0, nearmiss:0 };
+      counts[p].incident++;
+    });
+  });
+  safetyDB.nearmisses.forEach(r => {
+    // Near Miss hat kein body_part aber location — wir zeigen sie am Rumpf
+    if (!counts['torso']) counts['torso'] = { incident:0, nearmiss:0 };
+    counts['torso'].nearmiss++;
+  });
+
+  if (!Object.keys(counts).length) {
+    layer.innerHTML = '';
+    legend.innerHTML = '<span style="color:#9ca3af;font-size:12px">Noch keine Verletzungsdaten. Unfälle mit Körperteil-Angabe erscheinen hier.</span>';
+    return;
+  }
+
+  // Max für Skalierung
+  const maxTotal = Math.max(...Object.values(counts).map(c => c.incident + c.nearmiss));
+
+  let hotspots = '';
+  const legendItems = [];
+
+  BODY_PARTS.forEach(bp => {
+    const c = counts[bp.id];
+    if (!c) return;
+    const total = c.incident + c.nearmiss;
+    const r = Math.max(10, Math.min(26, 10 + (total / maxTotal) * 16));
+    const color = c.incident > 0 ? '#ef4444' : '#f59e0b';
+    const opacity = 0.75 + (total / maxTotal) * 0.2;
+
+    hotspots += `
+      <g style="cursor:pointer" onmouseenter="safetyBodyTooltip(event,'${bp.label}',${c.incident},${c.nearmiss},${bp.cx},${bp.cy})" onmouseleave="safetyBodyTooltipHide()">
+        <circle cx="${bp.cx}" cy="${bp.cy}" r="${r}" fill="${color}" opacity="${opacity}"/>
+        <text x="${bp.cx}" y="${bp.cy + 4}" text-anchor="middle" font-size="${r > 14 ? 12 : 10}" fill="white" font-weight="500">${total}</text>
+      </g>`;
+
+    legendItems.push({ label: bp.label, total, incident: c.incident, nearmiss: c.nearmiss });
+  });
+
+  layer.innerHTML = hotspots;
+
+  // Legende sortiert nach Häufigkeit
+  legendItems.sort((a,b) => b.total - a.total);
+  legend.innerHTML = legendItems.map(item => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6">
+      <span style="font-size:12px;color:#374151">${item.label}</span>
+      <span style="font-size:12px;display:flex;gap:6px;align-items:center">
+        ${item.incident ? `<span style="background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:10px;font-size:11px">${item.incident} Unfall</span>` : ''}
+        ${item.nearmiss ? `<span style="background:#fef3c7;color:#d97706;padding:1px 6px;border-radius:10px;font-size:11px">${item.nearmiss} NM</span>` : ''}
+      </span>
+    </div>`).join('');
+}
+
+function safetyBodyTooltip(e, label, incidents, nearmiss, cx, cy) {
+  const tooltip = document.getElementById('safety-body-tooltip');
+  const bg = document.getElementById('sbt-bg');
+  const t1 = document.getElementById('sbt-text1');
+  const t2 = document.getElementById('sbt-text2');
+  if (!tooltip) return;
+  const tx = Math.min(cx - 60, 90);
+  const ty = cy - 50;
+  bg.setAttribute('x', tx); bg.setAttribute('y', ty);
+  t1.setAttribute('x', tx + 60); t1.setAttribute('y', ty + 15);
+  t2.setAttribute('x', tx + 60); t2.setAttribute('y', ty + 28);
+  t1.textContent = label;
+  t2.textContent = `${incidents} Unfall${incidents!==1?'älle':''} · ${nearmiss} Near Miss`;
+  tooltip.style.display = 'block';
+}
+
+function safetyBodyTooltipHide() {
+  const tooltip = document.getElementById('safety-body-tooltip');
+  if (tooltip) tooltip.style.display = 'none';
+}
+
+/* ── Standort-Ansicht ── */
+function safetyRenderLocationView() {
+  const el = document.getElementById('safety-location-content');
+  if (!el) return;
+
+  // Alle Meldungen zusammenführen
+  const all = [
+    ...safetyDB.incidents.map(r    => ({ ...r, _kind:'incident'    })),
+    ...safetyDB.nearmisses.map(r   => ({ ...r, _kind:'nearmiss'    })),
+    ...safetyDB.observations.map(r => ({ ...r, _kind:'observation' })),
+  ];
+
+  if (!all.length) {
+    el.innerHTML = '<div class="empty-hint">Noch keine Meldungen vorhanden.</div>';
+    return;
+  }
+
+  // Gruppieren nach Standort
+  const byLocation = {};
+  all.forEach(r => {
+    const loc = r.location || 'Unbekannt';
+    if (!byLocation[loc]) byLocation[loc] = { incident:[], nearmiss:[], observation:[] };
+    byLocation[loc][r._kind].push(r);
+  });
+
+  // Kategorien für Beobachtungen
+  const catLabels = { condition:'Unsicherer Zustand', behavior:'Unsicheres Verhalten', idea:'Verbesserungsidee' };
+
+  const sortedLocs = Object.keys(byLocation).sort((a,b) => {
+    const ta = byLocation[a].incident.length + byLocation[a].nearmiss.length + byLocation[a].observation.length;
+    const tb = byLocation[b].incident.length + byLocation[b].nearmiss.length + byLocation[b].observation.length;
+    return tb - ta;
+  });
+
+  el.innerHTML = sortedLocs.map(loc => {
+    const d = byLocation[loc];
+    const total = d.incident.length + d.nearmiss.length + d.observation.length;
+
+    // Kategorien der Beobachtungen
+    const obsCats = {};
+    d.observation.forEach(r => {
+      const c = r.category || 'Sonstiges';
+      obsCats[c] = (obsCats[c]||0) + 1;
+    });
+
+    // Schweregrade der Unfälle
+    const sevLabels = { first_aid:'Erste Hilfe', doctor:'Arzt', lost_time:'Ausfall', hospital:'Krankenhaus' };
+    const sevCount = {};
+    d.incident.forEach(r => {
+      const s = sevLabels[r.severity] || r.severity || '–';
+      sevCount[s] = (sevCount[s]||0) + 1;
+    });
+
+    return `
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:600;color:#111">📍 ${loc}</div>
+        <div style="font-size:13px;color:#6b7280">${total} Meldung${total!==1?'en':''}</div>
+      </div>
+
+      <!-- Balken -->
+      <div style="display:flex;gap:6px;margin-bottom:12px;height:8px;border-radius:4px;overflow:hidden">
+        ${d.incident.length    ? `<div style="flex:${d.incident.length};background:#ef4444;min-width:4px"></div>` : ''}
+        ${d.nearmiss.length    ? `<div style="flex:${d.nearmiss.length};background:#f59e0b;min-width:4px"></div>` : ''}
+        ${d.observation.length ? `<div style="flex:${d.observation.length};background:#10b981;min-width:4px"></div>` : ''}
+      </div>
+
+      <!-- Zahlen -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:${Object.keys(obsCats).length||Object.keys(sevCount).length?'12px':'0'}">
+        <div style="background:#fee2e2;border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#dc2626">${d.incident.length}</div>
+          <div style="font-size:10px;color:#dc2626;text-transform:uppercase">Unfälle</div>
+        </div>
+        <div style="background:#fef3c7;border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#d97706">${d.nearmiss.length}</div>
+          <div style="font-size:10px;color:#d97706;text-transform:uppercase">Near Miss</div>
+        </div>
+        <div style="background:#d1fae5;border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#059669">${d.observation.length}</div>
+          <div style="font-size:10px;color:#059669;text-transform:uppercase">Beobachtungen</div>
+        </div>
+      </div>
+
+      <!-- Kategorien Beobachtungen -->
+      ${Object.keys(obsCats).length ? `
+      <div style="margin-bottom:8px">
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Beobachtungen nach Kategorie</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${Object.entries(obsCats).map(([cat,cnt]) => `
+            <span style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:2px 8px;border-radius:20px;font-size:11px">
+              ${catLabels[cat]||cat}: ${cnt}
+            </span>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Schweregrade Unfälle -->
+      ${Object.keys(sevCount).length ? `
+      <div>
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Unfälle nach Schweregrad</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${Object.entries(sevCount).map(([sev,cnt]) => `
+            <span style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:2px 8px;border-radius:20px;font-size:11px">
+              ${sev}: ${cnt}
+            </span>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
 }
 </script>
 <style>
