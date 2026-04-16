@@ -1840,36 +1840,59 @@ body {
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
             <!-- SVG Figur -->
             <div style="flex:0 0 220px">
-              <svg id="safety-body-svg" viewBox="0 0 220 420" style="width:100%;max-width:220px">
-                <!-- Kopf -->
-                <ellipse id="bp-head" cx="110" cy="45" rx="30" ry="34" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Hals -->
-                <rect id="bp-neck" x="100" y="75" width="20" height="18" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
+              <svg id="safety-body-svg" viewBox="0 0 220 400" style="width:100%;max-width:220px">
+                <defs>
+                  <style>
+                    .bf { fill:#e2e8f0; stroke:#cbd5e1; stroke-width:1.2; }
+                    .bs { fill:#fde8d8; stroke:#f5c5a3; stroke-width:1.2; }
+                  </style>
+                </defs>
+                <!-- Schatten -->
+                <ellipse cx="110" cy="388" rx="40" ry="7" fill="#e2e8f0"/>
+                <!-- Beine -->
+                <rect class="bf" x="72"  y="210" width="26" height="130" rx="11"/>
+                <rect class="bf" x="122" y="210" width="26" height="130" rx="11"/>
+                <!-- Schuhe -->
+                <ellipse class="bf" cx="85"  cy="342" rx="20" ry="10"/>
+                <ellipse class="bf" cx="135" cy="342" rx="20" ry="10"/>
                 <!-- Rumpf -->
-                <rect id="bp-torso" x="72" y="91" width="76" height="90" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Arm links -->
-                <rect id="bp-arm-l" x="38" y="94" width="32" height="80" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Arm rechts -->
-                <rect id="bp-arm-r" x="150" y="94" width="32" height="80" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Hand links -->
-                <ellipse id="bp-hand-l" cx="54" cy="188" rx="14" ry="18" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Hand rechts -->
-                <ellipse id="bp-hand-r" cx="166" cy="188" rx="14" ry="18" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Bein links -->
-                <rect id="bp-leg-l" x="72" y="180" width="34" height="110" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Bein rechts -->
-                <rect id="bp-leg-r" x="114" y="180" width="34" height="110" rx="8" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Fuss links -->
-                <ellipse id="bp-foot-l" cx="89" cy="300" rx="20" ry="12" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Fuss rechts -->
-                <ellipse id="bp-foot-r" cx="131" cy="300" rx="20" ry="12" fill="#e5e7eb" stroke="#d1d5db" stroke-width="1"/>
-                <!-- Hotspot Layer — wird per JS befüllt -->
+                <rect class="bf" x="66" y="96" width="88" height="118" rx="14"/>
+                <!-- Schulter-Kugeln -->
+                <ellipse class="bf" cx="58"  cy="106" rx="18" ry="16"/>
+                <ellipse class="bf" cx="162" cy="106" rx="18" ry="16"/>
+                <!-- Arme -->
+                <rect class="bf" x="34"  y="102" width="24" height="100" rx="11"/>
+                <rect class="bf" x="162" y="102" width="24" height="100" rx="11"/>
+                <!-- Hände -->
+                <ellipse class="bs" cx="46"  cy="214" rx="14" ry="17"/>
+                <ellipse class="bs" cx="174" cy="214" rx="14" ry="17"/>
+                <!-- Hals -->
+                <rect class="bs" x="100" y="68" width="20" height="32" rx="7"/>
+                <!-- Kopf -->
+                <ellipse class="bs" cx="110" cy="46" rx="34" ry="40"/>
+                <!-- Haare -->
+                <ellipse fill="#7c3f1e" cx="110" cy="12" rx="33" ry="16"/>
+                <ellipse fill="#7c3f1e" cx="79"  cy="28" rx="10" ry="20"/>
+                <ellipse fill="#7c3f1e" cx="141" cy="28" rx="10" ry="20"/>
+                <!-- Augen -->
+                <ellipse fill="#374151" cx="99"  cy="40" rx="4" ry="4.5"/>
+                <ellipse fill="#374151" cx="121" cy="40" rx="4" ry="4.5"/>
+                <!-- Mund -->
+                <path d="M101 58 Q110 65 119 58" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+                <!-- Helm -->
+                <ellipse fill="#fbbf24" cx="110" cy="10" rx="36" ry="17"/>
+                <rect fill="#fbbf24" x="73" y="16" width="74" height="13" rx="4"/>
+                <rect fill="#f59e0b" x="70" y="22" width="80" height="6" rx="3"/>
+                <!-- Sicherheitsweste Streifen -->
+                <rect fill="#10b981" x="66" y="112" width="88" height="9" rx="3" opacity="0.7"/>
+                <rect fill="#10b981" x="66" y="148" width="88" height="9" rx="3" opacity="0.7"/>
+                <!-- Hotspot Layer -->
                 <g id="safety-hotspot-layer"></g>
                 <!-- Tooltip -->
                 <g id="safety-body-tooltip" style="display:none">
-                  <rect id="sbt-bg" x="0" y="0" width="120" height="36" rx="6" fill="#111" opacity="0.88"/>
-                  <text id="sbt-text1" x="60" y="15" text-anchor="middle" font-size="11" fill="white" font-weight="500"></text>
-                  <text id="sbt-text2" x="60" y="28" text-anchor="middle" font-size="10" fill="#d1d5db"></text>
+                  <rect id="sbt-bg" x="0" y="0" width="130" height="38" rx="7" fill="#111" opacity="0.9"/>
+                  <text id="sbt-text1" x="65" y="15" text-anchor="middle" font-size="11" fill="white" font-weight="500"></text>
+                  <text id="sbt-text2" x="65" y="29" text-anchor="middle" font-size="10" fill="#d1d5db"></text>
                 </g>
               </svg>
             </div>
@@ -1914,16 +1937,20 @@ body {
               <input class="field-input" type="datetime-local" id="inc-datetime">
             </div>
             <div class="field-wrap">
-              <label class="field-label">Standort / Werk <span class="req">*</span></label>
-              <input class="field-input" id="inc-location" placeholder="z.B. Werk 1 / Montage" list="safety-locations-list" autocomplete="off">
+              <label class="field-label">Standort (Werk) <span class="req">*</span></label>
+              <select class="field-input" id="inc-location" onchange="safetyUpdateAreaDropdown('inc')">
+                <option value="">— Standort wählen —</option>
+              </select>
             </div>
             <div class="field-wrap">
-              <label class="field-label">Bereich / Linie</label>
-              <input class="field-input" id="inc-area" placeholder="z.B. Linie 3" list="safety-locations-list" autocomplete="off">
+              <label class="field-label">Bereich</label>
+              <select class="field-input" id="inc-area">
+                <option value="">— erst Standort wählen —</option>
+              </select>
             </div>
             <div class="field-wrap">
-              <label class="field-label">Arbeitsplatz</label>
-              <input class="field-input" id="inc-workplace" placeholder="z.B. Schweißstation" list="safety-locations-list" autocomplete="off">
+              <label class="field-label">Arbeitsplatz / Kostenstelle</label>
+              <input class="field-input" id="inc-workplace" placeholder="z.B. Schweißstation">
             </div>
             <div class="field-wrap">
               <label class="field-label">Melder (Name) <span class="req">*</span></label>
@@ -2055,8 +2082,16 @@ body {
               <input class="field-input" type="datetime-local" id="nm-datetime">
             </div>
             <div class="field-wrap">
-              <label class="field-label">Standort / Bereich <span class="req">*</span></label>
-              <input class="field-input" id="nm-location" placeholder="z.B. Montage / Linie 2" list="safety-locations-list" autocomplete="off">
+              <label class="field-label">Standort (Werk) <span class="req">*</span></label>
+              <select class="field-input" id="nm-location" onchange="safetyUpdateAreaDropdown('nm')">
+                <option value="">— Standort wählen —</option>
+              </select>
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Bereich</label>
+              <select class="field-input" id="nm-area">
+                <option value="">— erst Standort wählen —</option>
+              </select>
             </div>
             <div class="field-wrap">
               <label class="field-label">Melder <span class="req">*</span></label>
@@ -2133,8 +2168,16 @@ body {
           <div class="card-title">📍 Standort & Melder</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="field-wrap">
-              <label class="field-label">Standort / Bereich <span class="req">*</span></label>
-              <input class="field-input" id="obs-location" placeholder="z.B. Lager / Tor 3" list="safety-locations-list" autocomplete="off">
+              <label class="field-label">Standort (Werk) <span class="req">*</span></label>
+              <select class="field-input" id="obs-location" onchange="safetyUpdateAreaDropdown('obs')">
+                <option value="">— Standort wählen —</option>
+              </select>
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">Bereich</label>
+              <select class="field-input" id="obs-area">
+                <option value="">— erst Standort wählen —</option>
+              </select>
             </div>
             <div class="field-wrap">
               <label class="field-label">Melder (optional)</label>
@@ -7190,7 +7233,13 @@ function safetyResetForm(prefix) {
     el.value = '';
     el.style.borderColor = '';
   });
-  sec.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+  sec.querySelectorAll('select').forEach(el => {
+    el.selectedIndex = 0;
+    el.style.borderColor = '';
+  });
+  // Bereich-Dropdown zurücksetzen
+  const areaEl = document.getElementById(prefix + '-area');
+  if (areaEl) areaEl.innerHTML = '<option value="">— erst Standort wählen —</option>';
 
   // Foto-Arrays leeren
   if (prefix === 'inc') _incPhotos = [];
@@ -7220,34 +7269,6 @@ function safetyResetForm(prefix) {
 }
 
 function safetyBuildLocationList() {
-  const dl = document.getElementById('safety-locations-list');
-  if (!dl) return;
-
-  // Bereiche aus TPM (tpmDB.machines)
-  const tpmOptions = (tpmDB.machines || []).flatMap(m => {
-    const opts = [];
-    if (m.name)     opts.push(m.name);
-    if (m.area)     opts.push(m.area);
-    if (m.location) opts.push(m.location);
-    if (m.ort)      opts.push(m.ort);
-    return opts;
-  });
-
-  // Standorte aus 5S (db.locations)
-  const s5Options = (db?.locations || []).map(l => l.name).filter(Boolean);
-
-  // Eigene Einträge aus bisherigen Safety-Meldungen
-  const safetyOptions = [
-    ...safetyDB.incidents.map(r => r.location),
-    ...safetyDB.nearmisses.map(r => r.location),
-    ...safetyDB.observations.map(r => r.location),
-  ].filter(Boolean);
-
-  // Zusammenführen & deduplizieren
-  const all = [...new Set([...tpmOptions, ...s5Options, ...safetyOptions])].filter(Boolean).sort();
-
-  dl.innerHTML = all.map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
-
   // Reporter-Datalist aus 5S Auditoren
   const rl = document.getElementById('safety-reporters-list');
   if (rl) {
@@ -7258,6 +7279,53 @@ function safetyBuildLocationList() {
     ])].filter(Boolean).sort();
     rl.innerHTML = reporters.map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
   }
+  // Standort-Dropdowns befüllen
+  safetyBuildLocationDropdowns();
+}
+
+function safetyBuildLocationDropdowns() {
+  // 5S Standorte (db.locations) sind die Werke
+  const locations = db?.locations || [];
+  const opts = '<option value="">— Standort wählen —</option>' +
+    locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+
+  ['inc-location','nm-location','obs-location'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = opts;
+    if (cur) el.value = cur;
+  });
+}
+
+function safetyUpdateAreaDropdown(prefix) {
+  const locSel = document.getElementById(prefix + '-location');
+  const areaSel = document.getElementById(prefix + '-area');
+  if (!locSel || !areaSel) return;
+
+  const locId = locSel.value;
+  const loc = (db?.locations || []).find(l => String(l.id) === String(locId));
+
+  if (!loc || !loc.depts?.length) {
+    areaSel.innerHTML = '<option value="">— kein Bereich definiert —</option>';
+    return;
+  }
+
+  areaSel.innerHTML = '<option value="">— Bereich wählen —</option>' +
+    loc.depts.map(d => `<option value="${d}">${d}</option>`).join('');
+}
+
+function safetyGetLocationName(prefix) {
+  const locSel = document.getElementById(prefix + '-location');
+  if (!locSel) return safetyVal(prefix + '-location');
+  const opt = locSel.options[locSel.selectedIndex];
+  return opt ? opt.text : '';
+}
+
+function safetyGetAreaName(prefix) {
+  const sel = document.getElementById(prefix + '-area');
+  if (!sel) return '';
+  return sel.value || sel.options[sel.selectedIndex]?.text || '';
 }
 
 function safetyUpdateBadge() {
@@ -7389,8 +7457,8 @@ async function safetySaveIncident() {
     id: 'inc-' + Date.now(),
     type: 'incident',
     datetime: safetyVal('inc-datetime'),
-    location: safetyVal('inc-location'),
-    area: safetyVal('inc-area'),
+    location: safetyGetLocationName('inc'),
+    area: safetyGetAreaName('inc'),
     workplace: safetyVal('inc-workplace'),
     reporter: safetyVal('inc-reporter'),
     reporter_nr: safetyVal('inc-reporter-nr'),
@@ -7443,7 +7511,8 @@ async function safetySaveNearMiss() {
     id: 'nm-' + Date.now(),
     type: 'nearmiss',
     datetime: safetyVal('nm-datetime'),
-    location: safetyVal('nm-location'),
+    location: safetyGetLocationName('nm'),
+    area: safetyGetAreaName('nm'),
     reporter: safetyVal('nm-reporter'),
     description: safetyVal('nm-description'),
     activity: safetyVal('nm-activity'),
@@ -7477,7 +7546,8 @@ async function safetySaveObservation() {
     id: 'obs-' + Date.now(),
     type: 'observation',
     datetime: new Date().toISOString(),
-    location: safetyVal('obs-location'),
+    location: safetyGetLocationName('obs'),
+    area: safetyGetAreaName('obs'),
     reporter: safetyVal('obs-reporter') || 'Anonym',
     category: _obsSelectedCat,
     description: safetyVal('obs-description'),
@@ -7640,17 +7710,17 @@ function safetySetView(view) {
 
 /* ── Körperkarte ── */
 const BODY_PARTS = [
-  { id:'head',   label:'Kopf / Gesicht',   cx:110, cy:45  },
-  { id:'neck',   label:'Hals',             cx:110, cy:84  },
-  { id:'torso',  label:'Rumpf / Brust',    cx:110, cy:136 },
-  { id:'arm-l',  label:'Arm links',        cx:54,  cy:134 },
-  { id:'arm-r',  label:'Arm rechts',       cx:166, cy:134 },
-  { id:'hand-l', label:'Hand / Finger links',  cx:54,  cy:188 },
-  { id:'hand-r', label:'Hand / Finger rechts', cx:166, cy:188 },
-  { id:'leg-l',  label:'Bein links',       cx:89,  cy:235 },
-  { id:'leg-r',  label:'Bein rechts',      cx:131, cy:235 },
-  { id:'foot-l', label:'Fuß links',        cx:89,  cy:300 },
-  { id:'foot-r', label:'Fuß rechts',       cx:131, cy:300 },
+  { id:'head',   label:'Kopf / Gesicht',        cx:110, cy:46  },
+  { id:'neck',   label:'Hals',                  cx:110, cy:80  },
+  { id:'torso',  label:'Rumpf / Brust',         cx:110, cy:150 },
+  { id:'arm-l',  label:'Arm links',             cx:46,  cy:150 },
+  { id:'arm-r',  label:'Arm rechts',            cx:174, cy:150 },
+  { id:'hand-l', label:'Hand / Finger links',   cx:46,  cy:214 },
+  { id:'hand-r', label:'Hand / Finger rechts',  cx:174, cy:214 },
+  { id:'leg-l',  label:'Bein links',            cx:85,  cy:270 },
+  { id:'leg-r',  label:'Bein rechts',           cx:135, cy:270 },
+  { id:'foot-l', label:'Fuß links',             cx:85,  cy:342 },
+  { id:'foot-r', label:'Fuß rechts',            cx:135, cy:342 },
 ];
 
 // Mapping von Supabase body_part Werten zu Körperteilen
