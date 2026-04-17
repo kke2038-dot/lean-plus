@@ -874,6 +874,9 @@ body {
     <button class="lean-nav-tab" id="navtab-dashboard" onclick="showPane('dashboard')">
       📊 Dashboard
     </button>
+    <button class="lean-nav-tab" id="navtab-stammdaten" onclick="showPane('stammdaten')">
+      ⚙️ Stammdaten
+    </button>
   </div>
 </nav>
 
@@ -940,6 +943,15 @@ body {
         <div class="landing-card-desc">Alle Standorte auf einen Blick — 5S, Safety und TPM mit Trends und Verlaufsgrafiken.</div>
         <div class="landing-card-features">
           <span>Trends</span><span>Nach Standort</span><span>5S · Safety · TPM</span>
+        </div>
+      </div>
+
+      <div class="landing-card" onclick="showStammdaten()" style="border:1.5px solid #e0e7ff">
+        <div class="landing-card-icon" style="background:#e0e7ff">⚙️</div>
+        <div class="landing-card-title">Stammdaten</div>
+        <div class="landing-card-desc">Standorte, Bereiche und Abteilungen zentral verwalten — Basis für alle Module.</div>
+        <div class="landing-card-features">
+          <span>Standorte</span><span>Bereiche</span><span>Auditoren</span>
         </div>
       </div>
 
@@ -1691,6 +1703,12 @@ body {
       </div>
       <div class="card" style="margin-bottom:16px">
         <div class="card-title">Neuer Bereich</div>
+
+        <!-- Hinweis -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#166534">
+          📍 Standorte und Bereiche stammen aus den 5S Stammdaten (Einstellungen → Standorte)
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="field-wrap" style="margin-bottom:0">
             <label class="field-label">Name / Nr. <span class="req">*</span></label>
@@ -1701,12 +1719,16 @@ body {
             <input class="field-input" id="tpm-m-hersteller" placeholder="z.B. Goebel">
           </div>
           <div class="field-wrap" style="margin-bottom:0">
-            <label class="field-label">Standort</label>
-            <input class="field-input" id="tpm-m-location" placeholder="z.B. Werk Stuttgart">
+            <label class="field-label">Standort (Werk)</label>
+            <select class="field-input" id="tpm-m-location" onchange="tpmUpdateAreaFromLocation()">
+              <option value="">— Standort wählen —</option>
+            </select>
           </div>
           <div class="field-wrap" style="margin-bottom:0">
-            <label class="field-label">Bereich</label>
-            <input class="field-input" id="tpm-m-area" placeholder="z.B. Produktion">
+            <label class="field-label">Bereich / Abteilung</label>
+            <select class="field-input" id="tpm-m-area">
+              <option value="">— erst Standort wählen —</option>
+            </select>
           </div>
           <div class="field-wrap" style="margin-bottom:0">
             <label class="field-label">Ort / Kostenstelle</label>
@@ -2252,7 +2274,7 @@ body {
       <button class="sub-tab active" id="dvtab-overview"  onclick="dashSetView('overview')">Übersicht</button>
       <button class="sub-tab" id="dvtab-5s"       onclick="dashSetView('5s')">5S Verlauf</button>
       <button class="sub-tab" id="dvtab-safety"   onclick="dashSetView('safety')">Safety Verlauf</button>
-      <button class="sub-tab" id="dvtab-tpm"      onclick="dashSetView('tpm')">TPM Verlauf</button>
+      <button class="sub-tab" id="dvtab-compare"  onclick="dashSetView('compare')">🏆 Standortvergleich</button>
     </div>
 
     <!-- KPI Row -->
@@ -2263,6 +2285,70 @@ body {
 
   </div>
 </div><!-- /pane-dashboard -->
+
+<!-- ═══════════════════════════════════
+     STAMMDATEN PANE
+═══════════════════════════════════ -->
+<div class="lean-pane" id="pane-stammdaten">
+  <div class="s5-content" style="max-width:680px;padding:20px">
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:18px;font-weight:600;margin-bottom:6px">⚙️ Stammdaten</div>
+      <div style="font-size:13px;color:#6b7280">Hier werden Standorte und Bereiche zentral gepflegt. Diese Daten stehen in allen Modulen (5S, Safety, TPM, Dashboard) zur Verfügung.</div>
+    </div>
+
+    <!-- Info-Banner -->
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:600;color:#1e40af;margin-bottom:6px">ℹ️ So funktionieren die Stammdaten</div>
+      <div style="font-size:12px;color:#1e3a8a;line-height:1.6">
+        <b>1. Standort anlegen</b> — z.B. Stuttgart, Niederbiegen, Niederlenz<br>
+        <b>2. Bereiche/Abteilungen je Standort</b> — z.B. Montage, Fertigung, Versand<br>
+        <b>3. Überall verfügbar</b> — TPM, Safety und Dashboard nutzen diese Daten automatisch
+      </div>
+    </div>
+
+    <!-- Standorte -->
+    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <div style="font-size:15px;font-weight:600">Standorte (Werke)</div>
+          <div style="font-size:12px;color:#9ca3af;margin-top:2px">Führende Stammdaten für alle Module</div>
+        </div>
+        <button class="btn-primary" onclick="showPane('5s');setTimeout(()=>{s5ShowSection('settings');switchAdminTab('locations')},300)" style="font-size:13px">
+          + Standort anlegen
+        </button>
+      </div>
+      <div id="sd-locations-list">
+        <div style="font-size:13px;color:#9ca3af">Wird geladen…</div>
+      </div>
+    </div>
+
+    <!-- Auditoren -->
+    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <div style="font-size:15px;font-weight:600">Auditoren / Melder</div>
+          <div style="font-size:12px;color:#9ca3af;margin-top:2px">Werden in 5S Audits und Safety Meldungen als Melder vorgeschlagen</div>
+        </div>
+        <button class="btn-sm" onclick="showPane('5s');setTimeout(()=>{s5ShowSection('settings');switchAdminTab('auditors')},300)">
+          + Auditor anlegen
+        </button>
+      </div>
+      <div id="sd-auditors-list">
+        <div style="font-size:13px;color:#9ca3af">Wird geladen…</div>
+      </div>
+    </div>
+
+    <!-- Hinweis TPM -->
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:14px 16px">
+      <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:4px">💡 Tipp: Bereiche in TPM zuweisen</div>
+      <div style="font-size:12px;color:#78350f;line-height:1.6">
+        Wenn du in <b>Reinigung & Wartung → Bereiche</b> einen neuen Bereich anlegst, wähle dort Standort und Bereich aus den Dropdowns — dann erscheint er automatisch im Dashboard unter dem richtigen Standort.
+      </div>
+    </div>
+
+  </div>
+</div><!-- /pane-stammdaten -->
 
 <!-- ═══════════════════════════════════
      MOBILER ABARBEITUNGS-SCREEN (QR-Scan)
@@ -2517,8 +2603,13 @@ function showPane(pane) {
   if (pane === 'landing') renderLanding();
   if (pane === '5s')  { s5ShowSection('audits'); }
   if (pane === 'tpm') { tpmLoad().then(() => { tpmShowSection('overview'); tpmCheckQRParam(); }); }
-  if (pane === 'safety')    { safetyLoad(); }
-  if (pane === 'dashboard') { dashboardLoad(); }
+  if (pane === 'safety')     { safetyLoad(); }
+  if (pane === 'dashboard')  { dashboardLoad(); }
+  if (pane === 'stammdaten') { renderStammdaten(); }
+}
+
+function showStammdaten() {
+  showPane('stammdaten');
 }
 
 /* ─── LANDING ─── */
@@ -5598,7 +5689,7 @@ function tpmShowSection(sec) {
   if (content) content.scrollTop = 0;
 
   if (sec==='overview')       tpmRenderOverview();
-  if (sec==='machines-admin') tpmRenderMachinesList();
+  if (sec==='machines-admin') { tpmRenderMachinesList(); tpmPopulateLocationDropdowns(); }
   if (sec==='tools-admin')    tpmRenderToolsList();
   if (sec==='machine' && tpmCurMachine) tpmRenderMachine();
 }
@@ -6158,15 +6249,68 @@ function tpmTriggerMachineImg() {
   if (inp) inp.click();
 }
 
+// ── Standort-Dropdowns aus 5S-Stammdaten befüllen ──
+function tpmPopulateLocationDropdowns() {
+  const locs = db?.locations || [];
+  const locSel  = document.getElementById('tpm-m-location');
+  const areaSel = document.getElementById('tpm-m-area');
+  if (!locSel) return;
+
+  if (!locs.length) {
+    // Warnung anzeigen wenn keine Standorte vorhanden
+    const warn = document.getElementById('tpm-no-locations-warn');
+    if (!warn) {
+      const div = document.createElement('div');
+      div.id = 'tpm-no-locations-warn';
+      div.style.cssText = 'background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#92400e';
+      div.innerHTML = `⚠️ Noch keine Standorte definiert.
+        <button class="btn-sm" style="margin-left:8px;font-size:11px"
+          onclick="showPane('stammdaten')">→ Stammdaten anlegen</button>`;
+      locSel.parentElement.insertAdjacentElement('beforebegin', div);
+    }
+  }
+
+  const cur = locSel.value;
+  locSel.innerHTML = '<option value="">— Standort wählen —</option>' +
+    locs.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
+  if (cur) locSel.value = cur;
+
+  if (!areaSel) return;
+  areaSel.innerHTML = '<option value="">— erst Standort wählen —</option>';
+}
+
+function tpmUpdateAreaFromLocation() {
+  const locSel  = document.getElementById('tpm-m-location');
+  const areaSel = document.getElementById('tpm-m-area');
+  if (!locSel || !areaSel) return;
+
+  const locName = locSel.value;
+  const loc = (db?.locations || []).find(l => l.name === locName);
+
+  if (!loc || !loc.depts?.length) {
+    areaSel.innerHTML = '<option value="">— kein Bereich definiert —</option>';
+    return;
+  }
+  areaSel.innerHTML = '<option value="">— Bereich wählen —</option>' +
+    loc.depts.map(d => `<option value="${d}">${d}</option>`).join('');
+}
+
 async function tpmSaveMachine() {
   const name = document.getElementById('tpm-m-name')?.value.trim();
-  if (!name) { tpmToast('Bitte Maschinenname eingeben'); return; }
+  if (!name) { tpmToast('Bitte Bereichsname eingeben'); return; }
+
+  // Standort aus Select lesen (Klarname)
+  const locSel  = document.getElementById('tpm-m-location');
+  const areaSel = document.getElementById('tpm-m-area');
+  const locName  = locSel?.options[locSel.selectedIndex]?.value || '';
+  const areaName = areaSel?.options[areaSel.selectedIndex]?.value || '';
+
   const machine = {
     id:          'mach-'+Date.now(),
     name,
     hersteller:  document.getElementById('tpm-m-hersteller')?.value.trim()||'',
-    location:    document.getElementById('tpm-m-location')?.value.trim()||'',
-    area:        document.getElementById('tpm-m-area')?.value.trim()||'',
+    location:    locName,
+    area:        areaName,
     ort:         document.getElementById('tpm-m-ort')?.value.trim()||'',
     technologie: document.getElementById('tpm-m-technologie')?.value.trim()||'',
     image:       tpmPendingMachineImg || null,
@@ -6176,13 +6320,15 @@ async function tpmSaveMachine() {
   if (ok) {
     tpmDB.machines.push(machine);
     tpmPendingMachineImg = null;
-    ['tpm-m-name','tpm-m-hersteller','tpm-m-location','tpm-m-area','tpm-m-ort','tpm-m-technologie'].forEach(id=>{
+    ['tpm-m-name','tpm-m-hersteller','tpm-m-ort','tpm-m-technologie'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
+    if (locSel)  locSel.selectedIndex  = 0;
+    if (areaSel) areaSel.innerHTML = '<option value="">— erst Standort wählen —</option>';
     document.getElementById('tpm-m-img-preview-wrap').style.display='none';
     const badge = document.getElementById('tpm-badge-machines');
     if (badge) badge.textContent = tpmDB.machines.length;
-    tpmToast('✅ Maschine gespeichert');
+    tpmToast('✅ Bereich gespeichert');
     tpmRenderMachinesList();
   }
 }
@@ -6222,12 +6368,22 @@ function tpmEditMachine(id) {
           <input class="field-input" id="tpm-em-hersteller" value="${m.hersteller||''}">
         </div>
         <div class="field-wrap" style="margin-bottom:0">
-          <label class="field-label">Standort</label>
-          <input class="field-input" id="tpm-em-location" value="${m.location||''}">
+          <label class="field-label">Standort (Werk)</label>
+          <select class="field-input" id="tpm-em-location" onchange="tpmEditUpdateAreaDropdown()">
+            <option value="">— Standort wählen —</option>
+            ${(db?.locations||[]).map(l=>`<option value="${l.name}" ${l.name===m.location?'selected':''}>${l.name}</option>`).join('')}
+          </select>
         </div>
         <div class="field-wrap" style="margin-bottom:0">
-          <label class="field-label">Bereich</label>
-          <input class="field-input" id="tpm-em-area" value="${m.area||''}">
+          <label class="field-label">Bereich / Abteilung</label>
+          <select class="field-input" id="tpm-em-area">
+            ${(() => {
+              const loc=(db?.locations||[]).find(l=>l.name===m.location);
+              if (!loc?.depts?.length) return `<option value="${m.area||''}">${m.area||'— wählen —'}</option>`;
+              return '<option value="">— Bereich wählen —</option>' +
+                loc.depts.map(d=>`<option value="${d}" ${d===m.area?'selected':''}>${d}</option>`).join('');
+            })()}
+          </select>
         </div>
         <div class="field-wrap" style="margin-bottom:0">
           <label class="field-label">Ort / Kostenstelle</label>
@@ -6283,14 +6439,31 @@ function tpmEditMachineImgClear() {
   if (wrap) wrap.style.display = 'none';
 }
 
+function tpmEditUpdateAreaDropdown() {
+  const locSel  = document.getElementById('tpm-em-location');
+  const areaSel = document.getElementById('tpm-em-area');
+  if (!locSel || !areaSel) return;
+  const loc = (db?.locations||[]).find(l=>l.name===locSel.value);
+  if (!loc?.depts?.length) {
+    areaSel.innerHTML = '<option value="">— kein Bereich definiert —</option>';
+    return;
+  }
+  areaSel.innerHTML = '<option value="">— Bereich wählen —</option>' +
+    loc.depts.map(d=>`<option value="${d}">${d}</option>`).join('');
+}
+
 async function tpmUpdateMachine(id) {
   const name = document.getElementById('tpm-em-name')?.value.trim();
   if (!name) { tpmToast('Bitte Name eingeben'); return; }
+
+  const locSel  = document.getElementById('tpm-em-location');
+  const areaSel = document.getElementById('tpm-em-area');
+
   const updated = {
     id, name,
     hersteller:  document.getElementById('tpm-em-hersteller')?.value.trim()||'',
-    location:    document.getElementById('tpm-em-location')?.value.trim()||'',
-    area:        document.getElementById('tpm-em-area')?.value.trim()||'',
+    location:    locSel?.value || '',
+    area:        areaSel?.value || '',
     ort:         document.getElementById('tpm-em-ort')?.value.trim()||'',
     technologie: document.getElementById('tpm-em-technologie')?.value.trim()||'',
     image:       window._tpmEditMachineImg || null,
@@ -7236,6 +7409,69 @@ let dashView = 'overview';
 let dashLocIdx = 0;
 let dashCharts = [];
 
+/* ═══════════════════════════════════════════════════
+   ⚙️  STAMMDATEN
+═══════════════════════════════════════════════════ */
+function renderStammdaten() {
+  const locs = db?.locations || [];
+  const auds = db?.auditors  || [];
+
+  // Standorte-Liste
+  const locEl = document.getElementById('sd-locations-list');
+  if (locEl) {
+    if (!locs.length) {
+      locEl.innerHTML = `
+        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">⚠️</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#92400e">Noch keine Standorte angelegt</div>
+            <div style="font-size:12px;color:#78350f;margin-top:2px">Ohne Standorte funktionieren die Dropdowns in TPM, Safety und Dashboard nicht.</div>
+            <button class="btn-sm" style="margin-top:8px;background:#f59e0b;border-color:#f59e0b;color:#fff"
+              onclick="showPane('5s');setTimeout(()=>{s5ShowSection('settings');switchAdminTab('locations')},300)">
+              → Jetzt Standort anlegen
+            </button>
+          </div>
+        </div>`;
+    } else {
+      locEl.innerHTML = locs.map(l => {
+        const depts = l.depts || [];
+        return `<div style="border:0.5px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:14px;font-weight:500">📍 ${l.name}</span>
+            <button class="btn-sm" onclick="showPane('5s');setTimeout(()=>{s5ShowSection('settings');switchAdminTab('locations')},300)" style="font-size:11px">✏️ Bearbeiten</button>
+          </div>
+          ${depts.length
+            ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+                ${depts.map(d=>`<span style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:2px 8px;border-radius:10px;font-size:12px">${d}</span>`).join('')}
+               </div>`
+            : `<div style="font-size:12px;color:#f59e0b;display:flex;align-items:center;gap:6px">
+                ⚠️ Noch keine Bereiche/Abteilungen definiert
+                <button class="btn-sm" onclick="showPane('5s');setTimeout(()=>{s5ShowSection('settings');switchAdminTab('locations')},300)" style="font-size:11px">+ Bereiche anlegen</button>
+               </div>`
+          }
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Auditoren-Liste
+  const audEl = document.getElementById('sd-auditors-list');
+  if (audEl) {
+    if (!auds.length) {
+      audEl.innerHTML = `
+        <div style="font-size:13px;color:#9ca3af;padding:8px 0">
+          Noch keine Auditoren angelegt.
+          <button class="btn-sm" style="margin-left:8px" onclick="showPane('5s');setTimeout(()=>{s5ShowSection('settings');switchAdminTab('auditors')},300)">+ Auditor anlegen</button>
+        </div>`;
+    } else {
+      audEl.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap">` +
+        auds.map(a => `<span style="background:#f3f4f6;border:0.5px solid #e5e7eb;padding:4px 10px;border-radius:20px;font-size:13px">
+          ${a.name}${a.email?`<span style="color:#9ca3af;font-size:11px;margin-left:6px">${a.email}</span>`:''}
+        </span>`).join('') + `</div>`;
+    }
+  }
+}
+
 function dashDestroyCharts() {
   dashCharts.forEach(c => { try { c.destroy(); } catch(e){} });
   dashCharts = [];
@@ -7279,19 +7515,22 @@ function dashBuildLocTabs() {
 
 function dashSetView(v) {
   dashView = v;
-  ['overview','5s','safety','tpm'].forEach(t => {
+  ['overview','5s','safety','compare'].forEach(t => {
     const btn = document.getElementById('dvtab-' + t);
     if (btn) btn.classList.toggle('active', t === v);
   });
+  // Standort-Tabs ausblenden im Vergleich (zeigt alle)
+  const locTabs = document.getElementById('dash-loc-tabs');
+  if (locTabs) locTabs.style.display = v === 'compare' ? 'none' : 'flex';
   dashDestroyCharts();
   dashRenderView();
 }
 
 function dashRenderView() {
   if (dashView === 'overview') dashRenderOverview();
-  else if (dashView === '5s')  dashRender5S();
-  else if (dashView === 'safety') dashRenderSafety();
-  else if (dashView === 'tpm')    dashRenderTPM();
+  else if (dashView === '5s')      dashRender5S();
+  else if (dashView === 'safety')  dashRenderSafety();
+  else if (dashView === 'compare') dashRenderCompare();
 }
 
 // ── Daten-Helfer ──
@@ -7414,22 +7653,20 @@ function dashRenderKPI() {
     ? Math.round(audits.slice(-10,-5).reduce((s,a) => s + (a.score||0), 0) / Math.min(audits.length-5, 5) || 0)
     : null;
 
-  const machines = dashGetTPMForLoc(locName);
-  const kw = typeof getKW === 'function' ? getKW(new Date()) : 0;
-  const yr = new Date().getFullYear();
-  const tpmTotal = machines.reduce((s,m) => s + tpmDB.tasks.filter(t=>t.machine_id===m.id).length, 0);
-  const tpmDone  = machines.reduce((s,m) => {
-    const tasks = tpmDB.tasks.filter(t=>t.machine_id===m.id);
-    return s + tasks.filter(t => tpmDB.logs.some(l=>l.task_id===t.id&&l.kw===kw&&l.year===yr&&l.done)).length;
-  }, 0);
-  const tpmPct = tpmTotal > 0 ? Math.round(tpmDone / tpmTotal * 100) : null;
-
   const saf = dashGetSafetyForLoc(locName);
-  const incMonth = saf.incidents.filter(r => {
-    const d = new Date(); const mo = String(d.getMonth()+1).padStart(2,'0');
-    return (r.datetime||'').startsWith(d.getFullYear()+'-'+mo);
-  }).length;
+  const now = new Date();
+  const mo  = String(now.getMonth()+1).padStart(2,'0');
+  const yr  = String(now.getFullYear());
+  const incMonth = saf.incidents.filter(r => (r.datetime||'').startsWith(yr+'-'+mo)).length;
+  const nmMonth  = saf.nearmisses.filter(r => (r.datetime||r.created_at||'').startsWith(yr+'-'+mo)).length;
+  const obsTotal = saf.observations.length;
   const openActions = audits.reduce((s,a) => s + (a.actions||[]).filter(x=>!x.done).length, 0);
+  const incTotal = saf.incidents.length;
+  const incPrevMonth = saf.incidents.filter(r => {
+    const d = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const pmo = String(d.getMonth()+1).padStart(2,'0');
+    return (r.datetime||'').startsWith(d.getFullYear()+'-'+pmo);
+  }).length;
 
   el.innerHTML = `
     <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px 14px">
@@ -7437,20 +7674,20 @@ function dashRenderKPI() {
       <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em">Ø 5S Score</div>
       <div style="font-size:11px;margin-top:4px">${avgScore!==null&&prevScore!==null?dashTrendArrow(avgScore,prevScore):'<span style="color:#9ca3af">–</span>'} ggü. Vorperiode</div>
     </div>
-    <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px 14px">
-      <div style="font-size:26px;font-weight:500;line-height:1;margin-bottom:4px;color:${tpmPct!==null?dashScoreColor(tpmPct):'#9ca3af'}">${tpmPct!==null?tpmPct+'%':'–'}</div>
-      <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em">TPM Erfüllung KW ${kw}</div>
-      <div style="font-size:11px;margin-top:4px;color:var(--color-text-tertiary)">${tpmDone} / ${tpmTotal} Aufgaben</div>
-    </div>
-    <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px 14px">
+    <div style="background:${incMonth>0?'#fee2e2':'var(--color-background-secondary)'};border-radius:8px;padding:12px 14px">
       <div style="font-size:26px;font-weight:500;line-height:1;margin-bottom:4px;color:${incMonth>0?'#dc2626':'#059669'}">${incMonth}</div>
-      <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em">Unfälle (akt. Monat)</div>
-      <div style="font-size:11px;margin-top:4px;color:var(--color-text-tertiary)">${saf.nearmisses.length} Near Miss gesamt</div>
+      <div style="font-size:11px;color:${incMonth>0?'#dc2626':'var(--color-text-secondary)'};text-transform:uppercase;letter-spacing:.05em">Unfälle (akt. Monat)</div>
+      <div style="font-size:11px;margin-top:4px;color:var(--color-text-tertiary)">${incTotal} gesamt · ${incMonth>incPrevMonth?'<span style="color:#dc2626">▲ mehr als Vormonat</span>':incMonth<incPrevMonth?'<span style="color:#059669">▼ weniger</span>':'wie Vormonat'}</div>
     </div>
-    <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px 14px">
+    <div style="background:${nmMonth>0?'#fef3c7':'var(--color-background-secondary)'};border-radius:8px;padding:12px 14px">
+      <div style="font-size:26px;font-weight:500;line-height:1;margin-bottom:4px;color:${nmMonth>0?'#d97706':'#059669'}">${nmMonth}</div>
+      <div style="font-size:11px;color:${nmMonth>0?'#d97706':'var(--color-text-secondary)'};text-transform:uppercase;letter-spacing:.05em">Near Miss (akt. Monat)</div>
+      <div style="font-size:11px;margin-top:4px;color:var(--color-text-tertiary)">${obsTotal} Beobachtungen gesamt</div>
+    </div>
+    <div style="background:${openActions>0?'#fef3c7':'var(--color-background-secondary)'};border-radius:8px;padding:12px 14px">
       <div style="font-size:26px;font-weight:500;line-height:1;margin-bottom:4px;color:${openActions>0?'#d97706':'#059669'}">${openActions}</div>
       <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em">Offene Maßnahmen</div>
-      <div style="font-size:11px;margin-top:4px;color:var(--color-text-tertiary)">${audits.length} Audits gesamt</div>
+      <div style="font-size:11px;margin-top:4px;color:var(--color-text-tertiary)">${audits.length} 5S-Audits gesamt</div>
     </div>`;
 }
 
@@ -7493,15 +7730,9 @@ function dashRenderOverview() {
       <div style="font-size:13px;font-weight:500;margin-bottom:14px">5S Score Verlauf — ${locName}</div>
       <canvas id="dash-c-5s" height="80"></canvas>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-      <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:16px">
-        <div style="font-size:13px;font-weight:500;margin-bottom:14px">Safety — Unfälle & Near Miss</div>
-        <canvas id="dash-c-safety" height="120"></canvas>
-      </div>
-      <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:16px">
-        <div style="font-size:13px;font-weight:500;margin-bottom:14px">TPM Erfüllung — Bereiche</div>
-        <canvas id="dash-c-tpm" height="120"></canvas>
-      </div>
+    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:500;margin-bottom:14px">Safety — Unfälle & Near Miss</div>
+      <canvas id="dash-c-safety" height="80"></canvas>
     </div>
     <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;margin-bottom:10px">Bereiche — aktueller Stand</div>
     <div id="dash-bereiche-cards"></div>`;
@@ -7517,25 +7748,19 @@ function dashRenderOverview() {
       const openAct = (lastAudit?.actions||[]).filter(a=>!a.done).length;
       const safInc = saf.incidents.filter(r=>r.area===name||r.location===name).length;
       const safNM  = saf.nearmisses.filter(r=>r.area===name||r.location===name).length;
-      // TPM für diesen Bereich
-      const bMachines = machines.filter(m=>m.area===name||m.location===name||m.name===name);
-      const bTasks = bMachines.reduce((s,m)=>s+tpmDB.tasks.filter(t=>t.machine_id===m.id).length,0);
-      const bDone  = bMachines.reduce((s,m)=>{
-        const tasks=tpmDB.tasks.filter(t=>t.machine_id===m.id);
-        return s+tasks.filter(t=>tpmDB.logs.some(l=>l.task_id===t.id&&l.kw===kw&&l.year===yr&&l.done)).length;
-      },0);
-      const tpmP = bTasks>0 ? Math.round(bDone/bTasks*100) : null;
+      const safObs = saf.observations.filter(r=>r.area===name||r.location===name).length;
 
       return `<div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:8px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <span style="font-size:14px;font-weight:500">${name}</span>
-          <div style="display:flex;gap:6px">
-            ${safInc>0?`<span style="background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500">${safInc} Unfall</span>`:''}
-            ${safNM>0?`<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500">${safNM} NM</span>`:''}
-            ${openAct>0?`<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500">${openAct} offen</span>`:''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${safInc>0?`<span style="background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500">🚨 ${safInc} Unfall</span>`:''}
+            ${safNM>0?`<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500">⚠️ ${safNM} NM</span>`:''}
+            ${safObs>0?`<span style="background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:10px;font-size:11px">👁 ${safObs}</span>`:''}
+            ${openAct>0?`<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500">📋 ${openAct} offen</span>`:''}
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:11px;color:#9ca3af;min-width:32px">5S</span>
           <div style="flex:1;height:7px;background:#f3f4f6;border-radius:4px;overflow:hidden">
             <div style="height:100%;width:${score??0}%;background:${score!==null?dashScoreColor(score):'#e5e7eb'};border-radius:4px"></div>
@@ -7543,13 +7768,6 @@ function dashRenderOverview() {
           <span style="font-size:13px;font-weight:500;min-width:36px;color:${score!==null?dashScoreColor(score):'#9ca3af'}">${score!==null?score+'%':'–'}</span>
           ${score!==null&&prevScore!==null?dashTrendArrow(score,prevScore):''}
         </div>
-        ${tpmP!==null?`<div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;color:#9ca3af;min-width:32px">TPM</span>
-          <div style="flex:1;height:7px;background:#f3f4f6;border-radius:4px;overflow:hidden">
-            <div style="height:100%;width:${tpmP}%;background:${dashScoreColor(tpmP)};border-radius:4px"></div>
-          </div>
-          <span style="font-size:13px;font-weight:500;min-width:36px;color:${dashScoreColor(tpmP)}">${tpmP}%</span>
-        </div>`:''}
       </div>`;
     }).join('');
   }
@@ -7563,7 +7781,6 @@ function dashRenderOverview() {
       });
       dashCharts.push(c);
     }
-
     const cSaf = new Chart(document.getElementById('dash-c-safety'), {
       type:'bar', data:{labels, datasets:[
         {label:'Unfälle',data:incByMonth,backgroundColor:'#fca5a5'},
@@ -7573,26 +7790,6 @@ function dashRenderOverview() {
         scales:{x:{stacked:true,ticks:{font:{size:10}}},y:{stacked:true,ticks:{font:{size:10},stepSize:1}}}}
     });
     dashCharts.push(cSaf);
-
-    // TPM Balken
-    const tpmLabels = machines.map(m=>m.name);
-    const tpmData = machines.map(m => {
-      const tasks=tpmDB.tasks.filter(t=>t.machine_id===m.id);
-      if (!tasks.length) return 0;
-      const done=tasks.filter(t=>tpmDB.logs.some(l=>l.task_id===t.id&&l.kw===kw&&l.year===yr&&l.done)).length;
-      return Math.round(done/tasks.length*100);
-    });
-    if (tpmLabels.length) {
-      const cTPM = new Chart(document.getElementById('dash-c-tpm'), {
-        type:'bar', data:{labels:tpmLabels, datasets:[{
-          label:'TPM %', data:tpmData,
-          backgroundColor:tpmData.map(v=>v>=85?'#6ee7b7':v>=70?'#fcd34d':'#fca5a5')
-        }]},
-        options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
-          scales:{x:{min:0,max:100,ticks:{font:{size:10},callback:v=>v+'%'}},y:{ticks:{font:{size:10}}}}}
-      });
-      dashCharts.push(cTPM);
-    }
   }, 200);
 }
 
@@ -7714,55 +7911,140 @@ function dashRenderSafety() {
   }, 200);
 }
 
-// ── TPM Verlauf ──
-function dashRenderTPM() {
+// ── Standortvergleich ──
+function dashRenderCompare() {
   const el = document.getElementById('dash-main-content');
   if (!el) return;
   const locs = dashGetLocations();
-  const locName = locs[dashLocIdx]?.name || '';
-  const machines = dashGetTPMForLoc(locName);
-  const kw = typeof getKW === 'function' ? getKW(new Date()) : 0;
-  const yr = new Date().getFullYear();
+  if (!locs.length) {
+    el.innerHTML = '<div class="empty-hint">Keine Standorte definiert. Bitte unter Stammdaten anlegen.</div>';
+    return;
+  }
+  const MONTHS = 10;
+  const labels = dashGetMonthLabels(MONTHS);
+  const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4'];
+  const now = new Date();
+  const mo  = String(now.getMonth()+1).padStart(2,'0');
+  const yr  = String(now.getFullYear());
 
-  const tpmData = machines.map(m => {
-    const tasks = tpmDB.tasks.filter(t=>t.machine_id===m.id);
-    if (!tasks.length) return null;
-    const done = tasks.filter(t=>tpmDB.logs.some(l=>l.task_id===t.id&&l.kw===kw&&l.year===yr&&l.done)).length;
-    return {name:m.name, pct:Math.round(done/tasks.length*100), done, total:tasks.length};
-  }).filter(Boolean).sort((a,b)=>a.pct-b.pct);
+  // Daten pro Standort sammeln
+  const locData = locs.map((loc, i) => {
+    const audits = dashGetS5DataForLoc(loc.name);
+    const saf    = dashGetSafetyForLoc(loc.name);
+    const avgScore = audits.length
+      ? Math.round(audits.slice(-5).reduce((s,a)=>s+(a.score||0),0)/Math.min(audits.length,5))
+      : null;
+    const prevScore = audits.length > 5
+      ? Math.round(audits.slice(-10,-5).reduce((s,a)=>s+(a.score||0),0)/Math.min(audits.length-5,5))
+      : null;
+    const openActions = audits.reduce((s,a)=>s+(a.actions||[]).filter(x=>!x.done).length,0);
+    const incMonth = saf.incidents.filter(r=>(r.datetime||'').startsWith(yr+'-'+mo)).length;
+    const nmMonth  = saf.nearmisses.filter(r=>(r.datetime||r.created_at||'').startsWith(yr+'-'+mo)).length;
+    const incTotal = saf.incidents.length;
+    const s5History = dashAuditsByMonth(audits, MONTHS);
+    const incHistory = dashSafetyByMonth(saf.incidents, MONTHS);
+    return { loc, avgScore, prevScore, openActions, incMonth, nmMonth, incTotal,
+             s5History, incHistory, color: COLORS[i % COLORS.length], auditsCount: audits.length };
+  });
+
+  // Vergleichs-KPI Zeile alle Standorte
+  const kpiHtml = locData.map(d => `
+    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:10px;border-bottom:3px solid ${d.color};padding-bottom:6px">${d.loc.name}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:${d.avgScore!==null?'var(--color-background-secondary)':'#f9fafb'};border-radius:8px;padding:8px">
+          <div style="font-size:22px;font-weight:500;color:${d.avgScore!==null?dashScoreColor(d.avgScore):'#9ca3af'}">${d.avgScore!==null?d.avgScore+'%':'–'}</div>
+          <div style="font-size:10px;color:var(--color-text-secondary);text-transform:uppercase">5S Score</div>
+          <div style="font-size:10px;margin-top:2px">${d.avgScore!==null&&d.prevScore!==null?dashTrendArrow(d.avgScore,d.prevScore):'–'}</div>
+        </div>
+        <div style="background:${d.incMonth>0?'#fee2e2':'var(--color-background-secondary)'};border-radius:8px;padding:8px">
+          <div style="font-size:22px;font-weight:500;color:${d.incMonth>0?'#dc2626':'#059669'}">${d.incMonth}</div>
+          <div style="font-size:10px;color:${d.incMonth>0?'#dc2626':'var(--color-text-secondary)'};text-transform:uppercase">Unfälle</div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:2px">${d.nmMonth} NM</div>
+        </div>
+        <div style="background:${d.openActions>0?'#fef3c7':'var(--color-background-secondary)'};border-radius:8px;padding:8px">
+          <div style="font-size:22px;font-weight:500;color:${d.openActions>0?'#d97706':'#059669'}">${d.openActions}</div>
+          <div style="font-size:10px;color:var(--color-text-secondary);text-transform:uppercase">Offen</div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:2px">${d.auditsCount} Audits</div>
+        </div>
+        <div style="background:var(--color-background-secondary);border-radius:8px;padding:8px">
+          <div style="font-size:22px;font-weight:500;color:#374151">${d.incTotal}</div>
+          <div style="font-size:10px;color:var(--color-text-secondary);text-transform:uppercase">Unfälle ges.</div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:2px">gesamt</div>
+        </div>
+      </div>
+    </div>`).join('');
 
   el.innerHTML = `
-    ${tpmData.length ? `
+    <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;margin-bottom:10px">Alle Standorte — aktueller Monat</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
+      ${kpiHtml}
+    </div>
+
     <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:500;margin-bottom:14px">TPM Erfüllung — KW ${kw}/${yr} · ${locName}</div>
-      <canvas id="dash-c-tpm-full" height="${Math.max(60, tpmData.length*30)}"></canvas>
-    </div>` : ''}
-    <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;margin-bottom:10px">Bereiche — sortiert nach Erfüllung</div>
-    ${tpmData.map(x=>`
-    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:12px 16px;margin-bottom:8px">
-      <div style="font-size:13px;font-weight:500;margin-bottom:6px">${x.name}</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div style="flex:1;height:7px;background:#f3f4f6;border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:${x.pct}%;background:${dashScoreColor(x.pct)};border-radius:4px"></div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:14px">5S Score — Standortvergleich Verlauf</div>
+      <canvas id="dash-cmp-5s" height="80"></canvas>
+    </div>
+
+    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:500;margin-bottom:14px">Unfälle — Standortvergleich Verlauf</div>
+      <canvas id="dash-cmp-inc" height="70"></canvas>
+    </div>
+
+    <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;margin-bottom:10px">Ranking 5S — aktueller Stand</div>
+    ${[...locData].filter(d=>d.avgScore!==null).sort((a,b)=>b.avgScore-a.avgScore).map((d,rank)=>`
+    <div style="background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:22px;font-weight:500;color:#d1d5db;min-width:28px">${rank+1}</span>
+      <div style="width:10px;height:10px;border-radius:50%;background:${d.color};flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500;margin-bottom:5px">${d.loc.name}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:7px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${d.avgScore}%;background:${dashScoreColor(d.avgScore)};border-radius:4px"></div>
+          </div>
+          <span style="font-size:14px;font-weight:500;color:${dashScoreColor(d.avgScore)};min-width:40px">${d.avgScore}%</span>
+          ${dashTrendArrow(d.avgScore, d.prevScore)}
         </div>
-        <span style="font-size:14px;font-weight:500;color:${dashScoreColor(x.pct)};min-width:40px">${x.pct}%</span>
-        <span style="font-size:11px;color:#9ca3af">${x.done}/${x.total}</span>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        ${d.incMonth>0?`<div style="font-size:12px;color:#dc2626;font-weight:500">🚨 ${d.incMonth} Unfall</div>`:'<div style="font-size:12px;color:#059669">✓ Kein Unfall</div>'}
+        ${d.openActions>0?`<div style="font-size:11px;color:#d97706">${d.openActions} Maßnahmen offen</div>`:''}
       </div>
     </div>`).join('')}
-    ${!tpmData.length?`<div class="empty-hint">Keine TPM-Bereiche für ${locName} gefunden.<br><small style="color:#9ca3af">Tipp: Bereiche in Reinigung & Wartung dem Standort/Bereich "${locName}" zuweisen.</small></div>`:''}`;
+    ${locData.every(d=>d.avgScore===null)?'<div class="empty-hint">Noch keine 5S-Audits vorhanden.</div>':''}`;
 
-  setTimeout(()=>{
-    if (tpmData.length) {
-      const c = new Chart(document.getElementById('dash-c-tpm-full'), {
-        type:'bar', data:{
-          labels:tpmData.map(x=>x.name),
-          datasets:[{label:'TPM %',data:tpmData.map(x=>x.pct),backgroundColor:tpmData.map(x=>dashScoreColor(x.pct))}]
-        },
-        options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
-          scales:{x:{min:0,max:100,ticks:{font:{size:11},callback:v=>v+'%'}},y:{ticks:{font:{size:11}}}}}
+  setTimeout(() => {
+    // 5S Verlauf je Standort
+    const s5Datasets = locData.filter(d=>d.s5History.some(v=>v!==null)).map(d => ({
+      label: d.loc.name,
+      data: d.s5History.map((v,i,arr)=>{
+        if(v!==null) return v;
+        for(let j=i-1;j>=0;j--) if(arr[j]!==null) return arr[j];
+        return null;
+      }),
+      borderColor: d.color, backgroundColor: 'transparent',
+      tension: 0.4, pointRadius: 3, borderWidth: 2.5, spanGaps: true,
+    }));
+    if (s5Datasets.length) {
+      const c = new Chart(document.getElementById('dash-cmp-5s'), {
+        type:'line', data:{labels, datasets:s5Datasets},
+        options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+          scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:11}}},x:{ticks:{font:{size:11}}}}}
       });
       dashCharts.push(c);
     }
+
+    // Unfälle je Standort
+    const incDatasets = locData.map(d => ({
+      label: d.loc.name, data: d.incHistory,
+      backgroundColor: d.color + 'aa', borderColor: d.color, borderWidth: 1,
+    }));
+    const cInc = new Chart(document.getElementById('dash-cmp-inc'), {
+      type:'bar', data:{labels, datasets:incDatasets},
+      options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+        scales:{x:{stacked:false,ticks:{font:{size:10}}},y:{min:0,ticks:{stepSize:1,font:{size:10}}}}}
+    });
+    dashCharts.push(cInc);
   }, 200);
 }
 
@@ -7865,10 +8147,10 @@ function safetyBuildLocationList() {
 }
 
 function safetyBuildLocationDropdowns() {
-  // 5S Standorte (db.locations) sind die Werke
   const locations = db?.locations || [];
+  // Standorte als Name-Value (nicht ID) damit Anzeige und Speicherung übereinstimmen
   const opts = '<option value="">— Standort wählen —</option>' +
-    locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+    locations.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
 
   ['inc-location','nm-location','obs-location'].forEach(id => {
     const el = document.getElementById(id);
@@ -7876,6 +8158,19 @@ function safetyBuildLocationDropdowns() {
     const cur = el.value;
     el.innerHTML = opts;
     if (cur) el.value = cur;
+
+    // Warnung wenn keine Standorte
+    if (!locations.length) {
+      const warnId = 'warn-' + id;
+      if (!document.getElementById(warnId)) {
+        const div = document.createElement('div');
+        div.id = warnId;
+        div.style.cssText = 'font-size:11px;color:#d97706;margin-top:4px;display:flex;align-items:center;gap:6px';
+        div.innerHTML = `⚠️ Keine Standorte angelegt.
+          <button onclick="showStammdaten()" style="background:none;border:none;color:#2563eb;font-size:11px;cursor:pointer;padding:0;text-decoration:underline">Jetzt anlegen →</button>`;
+        el.parentElement.appendChild(div);
+      }
+    }
   });
 }
 
@@ -7884,8 +8179,8 @@ function safetyUpdateAreaDropdown(prefix) {
   const areaSel = document.getElementById(prefix + '-area');
   if (!locSel || !areaSel) return;
 
-  const locId = locSel.value;
-  const loc = (db?.locations || []).find(l => String(l.id) === String(locId));
+  const locName = locSel.value;
+  const loc = (db?.locations || []).find(l => l.name === locName);
 
   if (!loc || !loc.depts?.length) {
     areaSel.innerHTML = '<option value="">— kein Bereich definiert —</option>';
